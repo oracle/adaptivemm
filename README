@@ -1,0 +1,51 @@
+predictord initiates asynchronous compaction of physical memory for a given node
+if doing so could avert a predicted shortage that would otherwise cause
+allocation stalls.
+
+predictord samples /proc/buddyinfo once a second to monitor the total available
+free memory and the fraction thereof that, whilst notionally free, requires
+compaction before it can be used.  At any given moment, the difference between
+these two quantities is the amount of memory that is free for immediate use:
+once this is exhausted, subsequent allocations will stall whilst a portion of
+the fragmented memory is compacted.  The program calculates trends for both the
+total and fragmented free memory and, by extrapolation, determines whether
+exhaustion is imminent.  At the last possible moment, i.e. only once it is
+absolutely necessary, the program initiates compaction with a view to recovering
+the fragmented memory just before it is required by subsequent allocations.
+
+There are two parameters that, for now, must be set on the command line.  The
+first is the compaction rate, expressed in pages/s.  Empirical observations
+suggest that a value of 25000 would be a reasonable basis for experimenting.
+
+The second parameter is the fragmentation threshold, expressed in pages;
+this determines the quantity of memory that must be lost to fragmentation at the
+projected point of exhaustion in order for predictord to attempt compaction.
+This threshold is quite dependent on a system's working set but a value of 10%
+of the physical memory in a zone might be suitable.  A more accurate value could
+be obtained by observing the memory statistics after a complete compaction pass.
+
+In its simplest form the program may be invoked as
+
+	predictord -c 25000 -t 0 -o test1 -z 0,Normal
+
+No compaction will be attempted:  instead, the program will merely sample the
+system and generate data for the Normal zone in node 0.  It will create the
+files
+
+	test1.input
+	test1.0,Normal.observations
+	test1.0,Normal.predictions
+
+The first is merely a record of the procfs statistcs collected that can be used
+to replay the calculations for offline analysis.  The second and third are
+gnuplot v5 input files that can be read with the accompanying file
+'predictord.gnulpot' --- see the instructions in that file.  For each zone,
+these graphs show the memory use as well as any projections of memory
+exhaustion.
+
+In order to effect compaction, the program must be run, with elevated
+privileges, using "-C", e.g.
+
+	predictord -C -c 25000 -t 0 -o test1 -z0,Normal
+
+Again, similar output files will be generated.
