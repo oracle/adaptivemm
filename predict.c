@@ -1,5 +1,11 @@
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "predict_impl.h"
+
+unsigned long mempredict_threshold = 1000;
+
+#define MEMRECLAIM_THRESHOLD 20
 
 /*
  * This function inserts the given value into the list of most recently seen
@@ -9,34 +15,48 @@
  * this reduces the need for storage and permits constant time updates.
  */
 static int
-lsq_fit(struct lsq_struct *lsq, long long new_y, long long *m, long long *c)
+lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
+	long long *m, long long *c)
 {
-	unsigned long long oldest_y;
+	long long sigma_x, sigma_y;
+	long sigma_xy, sigma_xx;
+	long long slope_divisor;
+	int i, next;
+	long x_offset;
 
-	oldest_y = lsq->y[lsq->slot];
+	next = lsq->next++;
+	lsq->x[next] = new_x;
+	lsq->y[next] = new_y;
 
-	lsq->sum_xy -= lsq->sum_y;
-	if (lsq->ready)
-		lsq->sum_xy += COUNT * oldest_y;
-
-	lsq->sum_y += new_y;
-	if (lsq->ready)
-		lsq->sum_y -= oldest_y;
-
-	lsq->y[lsq->slot++] = new_y;
-
-	if (lsq->slot == COUNT) {
-		lsq->slot = 0;
+	if (lsq->next == COUNT) {
+		lsq->next = 0;
 		lsq->ready = 1;
 	}
 
 	if (!lsq->ready)
 		return -1;
 
-	*m = (COUNT * lsq->sum_xy - SUM_X * lsq->sum_y) /
-	    (COUNT * SUM_XX - SUM_X * SUM_X);
+	x_offset = lsq->x[lsq->next];
+	for (i = 0; i < COUNT; i++)
+		lsq->x[i] -= x_offset;
 
-	*c = (lsq->sum_y - *m * SUM_X) / COUNT;
+	sigma_x = sigma_y = sigma_xy = sigma_xx = 0;
+	for (i = 0; i < COUNT; i++) {
+		sigma_x += lsq->x[i];
+		sigma_y += lsq->y[i];
+		sigma_xy += (lsq->x[i] * lsq->y[i]);
+		sigma_xx += (lsq->x[i] * lsq->x[i]);
+	}
+
+	slope_divisor = COUNT * sigma_xx - sigma_x * sigma_x;
+	if (slope_divisor == 0)
+		return -1;
+
+	*m = ((COUNT * sigma_xy - sigma_x * sigma_y) * 100) / slope_divisor;
+	*c = (sigma_y - *m * sigma_x) / COUNT;
+
+	for (i = 0; i < COUNT; i++)
+		lsq->x[i] += x_offset;
 
 	return 0;
 }
@@ -85,81 +105,43 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long *m, long long *c)
  * The threshold is [XXX: a very good starting point will be the value of f_f
  * after the completion of an entire compaction pass].
  */
-struct prediction_struct *
-predict(unsigned long *free, struct lsq_struct *lsq, int threshold, int R_c,
-    struct prediction_struct *p)
+unsigned long
+predict(struct frag_info *frag_vec, struct lsq_struct *lsq, int threshold, int R_c,
+	struct zone_hash_entry *zhe)
 {
 	int order;
 	long long m[MAX_ORDER];
 	long long c[MAX_ORDER];
 	int is_ready = 1;
+	unsigned long retval = 0;
 
 	for (order = 0; order < MAX_ORDER; order++) {
-		if (lsq_fit(&lsq[order], free[order], &m[order],
-		    &c[order]) == -1)
+		if (lsq_fit(&lsq[order], frag_vec[order].free_pages,
+		frag_vec[order].msecs, &m[order], &c[order]) == -1)
 			is_ready = 0;
 	}
 
 	if (!is_ready)
-		return NULL;
+		return retval;
 
-	p->f_T_zero = c[0];
-	p->R_T = m[0];
+	if (m[0] >= 0) {
+		for (order = 1; order < MAX_ORDER; order++) {
+			if (m[0] == m[order])
+				continue;
 
-	for (order = 1; order < MAX_ORDER; order++) {
+			long long x_cross = ((c[0] - c[order]) * 100) / (m[order] - m[0]);
 
-		p->order = order;
-		p->f_f_zero = c[order];
-		p->R_f = m[order];
-
-		if (p->f_T_zero <= p->f_f_zero)
-			continue;
-
-		/*
-		 * There are only two reasons to begin compaction immediately,
-		 * i.e. at the beginning of this interval.  The first is that
-		 * the alternative would be exhaustion before the beginning of
-		 * the next interval.
-		 */
-		if (p->R_T < p->R_f) {
-			p->t_e = (p->f_T_zero - p->f_f_zero) /
-			    (p->R_f - p->R_T);
-			if (p->t_e < 1) {
-				/*
-				 * Don't bother compacting if the expected
-				 * fragmentation improves upon the given
-				 * threshold.
-				 */
-				p->f_e = (p->f_T_zero - p->f_f_zero) *
-				    p->R_T / (p->R_f - p->R_T) +
-				    p->f_T_zero;
-				if (p->f_e > threshold) {
-					p->type = TYPE_ONE;
-					return p;
-				}
-			}
-		}
-
-		/*
-		 * The second reason is that deferring compaction until the
-		 * start of the next interval would result, at the time of
-		 * exhaustion, in a surfeit of free fragmented memory above the
-		 * desired threshold.
-		 */
-		if (p->R_T < p->R_f + R_c) {
-			p->t_e = (p->f_T_zero - p->f_f_zero + R_c) /
-			    (p->R_f + R_c - p->R_T);
-			if (p->t_e > 1) {
-				p->f_e = (p->f_T_zero - p->f_f_zero + R_c) *
-				    p->R_T / (p->R_f + R_c - p->R_T) +
-				    p->f_T_zero;
-				if (p->f_e > threshold) {
-					p->type = TYPE_TWO;
-					return p;
-				}
+			if ((x_cross < mempredict_threshold) && (x_cross > -mempredict_threshold)) {
+				retval |= MEMPREDICT_COMPACT;
+				return retval;
 			}
 		}
 	}
+	else {
+		if (frag_vec[0].free_pages > ((MEMRECLAIM_THRESHOLD) * zhe->managed)/ 100) {
+			retval |= MEMPREDICT_RECLAIM;
+		}
+	}
 
-	return NULL;
+	return retval;
 }

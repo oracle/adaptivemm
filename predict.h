@@ -1,36 +1,56 @@
 #ifndef PREDICT_H
 #define	PREDICT_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define	MAX_ORDER	11
 #define	COUNT		8
+#define MEMPREDICT_RECLAIM 0x01
+#define MEMPREDICT_COMPACT 0x02
+
+long compaction_rate;
+int reclaim_rate;
 
 struct lsq_struct {
-	int slot;
+	int next;
 	int ready;
 	long long y[COUNT];
+	long long x[COUNT];
 	long long sum_xy;
 	long long sum_y;
 };
 
-enum prediction_type { TYPE_NONE, TYPE_ONE, TYPE_TWO };
-
-struct prediction_struct {
-	int order;
-	enum prediction_type type;
-	float f_T_zero;
-	float R_T;
-	float f_f_zero;
-	float R_f;
-	float t_e;
-	float f_e;
+enum output_type {
+	OUTPUT_OBSERVATIONS,
+	OUTPUT_PREDICTIONS,
+	MAX_OUTPUT
 };
 
-struct prediction_struct *predict(unsigned long *, struct lsq_struct *, int,
-    int, struct prediction_struct *);
+struct frag_info {
+	long long free_pages;
+	long long msecs;
+};
+
+struct zone_hash_entry {
+	char *z_zone;
+	char *z_node;
+	struct lsq_struct z_lsq[MAX_ORDER];
+	int z_n;
+	struct zone_hash_entry *z_next;
+	FILE *z_output[MAX_OUTPUT];
+	unsigned long min;
+	unsigned long low;
+	unsigned long high;
+	unsigned long managed;
+};
+
+unsigned long predict(struct frag_info *, struct lsq_struct *, int,
+    int, struct zone_hash_entry *);
 
 #ifdef __cplusplus
 }

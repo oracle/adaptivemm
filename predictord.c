@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <time.h>
 #include <limits.h>
 #include <pthread.h>
 #include <search.h>
@@ -15,21 +16,8 @@
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%s/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
-
-enum output_type {
-	OUTPUT_OBSERVATIONS,
-	OUTPUT_PREDICTIONS,
-	MAX_OUTPUT
-};
-
-struct zone_hash_entry {
-	char *z_zone;
-	char *z_node;
-	struct lsq_struct z_lsq[MAX_ORDER];
-	int z_n;
-	struct zone_hash_entry *z_next;
-	FILE *z_output[MAX_OUTPUT];
-};
+#define ZONEINFO		"/proc/zoneinfo"
+#define RESCALE_WMARK		"/proc/sys/vm/watermark_rescale_factor"
 
 struct node_hash_entry {
 	char *n_node_id;
@@ -39,105 +27,6 @@ struct node_hash_entry {
 	int n_do_compact;
 	struct hsearch_data n_zone_hash;
 };
-
-/*
- * plot() appends entries to gnuplot input files that describe the memory usage
- * and the nature of any predictions.  For example, if the program is invoked
- * with
- *
- *	-o output -z 1,Normal
- *
- * then it will create output.1,Normal.observations and
- * output.1,Normal.predictions;  these can be read by starting gnuplot (v5) and
- * issuing
- *
- *	basename='output.1,Normal'
- *	load 'predictord.gnuplot'
- *
- * where the file predictord.gnuplot contains
- *
- *	o=basename.'.observations'
- *	p=basename.'.predictions'
- *
- *	set xl 'Time/s'
- *	set yl 'Free memory/pages'
- *	set tit basename
- *
- *	plot \
- *	o u 1:2 w l lc 1 lw 1 t 'Total', \
- *	for[c=12:3:-1] o u 1:c w l lc (c-2) lw 1 t 'Order '.(c-2), \
- *	\
- *	p u 2:3:4:5 w vec nohead lc 1 dt 1 lw 2 noti, \
- *	p u 2:6:7:8 w vec nohead lc 1 dt 2 lw 2 noti, \
- *	p u 2:9:10:11:1 w vec nohead lc var dt 1 lw 2 noti, \
- *	p u 12:13:14:15:1 w vec nohead lc var dt 2 lw 2 noti
- */
-void
-plot(struct zone_hash_entry *zhe, unsigned long *free,
-    struct prediction_struct *p)
-{
-	int n = zhe->z_n++;
-	float x, y, dx, dy;
-	int order;
-	FILE *observations = zhe->z_output[OUTPUT_OBSERVATIONS];
-	FILE *predictions = zhe->z_output[OUTPUT_PREDICTIONS];
-
-	/* the time */
-	(void) fprintf(observations, "%d ", n);
-
-	/* observed total free memory */
-	(void) fprintf(observations, "% lld", (long long)free[0]);
-
-	/* fragmented free memory for orders 1 to MAX_ORDER - 1 */
-	for (order = 1; order < MAX_ORDER; order++)
-		(void) fprintf(observations, " %lld", (long long)free[order]);
-	(void) fprintf(observations, "\n");
-
-	fflush(observations);
-
-	if (p == NULL)
-		return;
-
-	/* the order, used to choose a colour */
-	(void) fprintf(predictions, "%d ", p->order);
-
-	/* the time */
-	(void) fprintf(predictions, "%d ", n);
-
-	/* total free memory historical trend given by a vector */
-	(void) fprintf(predictions, "%lld %lld %lld ",
-	    (long long)p->f_T_zero, (long long)-COUNT,
-	    (long long)(-COUNT * p->R_T));
-
-	/* total free memory projection */
-	(void) fprintf(predictions, "%lld %lld %lld ",
-	    (long long)p->f_T_zero, (long long)p->t_e,
-	    (long long)(p->f_e - p->f_T_zero));
-
-	/* fragmented free memory trend */
-	(void) fprintf(predictions, "%lld %lld %lld ",
-	    (long long)p->f_f_zero, (long long)-COUNT,
-	    (long long)(-COUNT * p->R_f));
-
-	/* fragmented free memory prediction */
-	if (p->type == TYPE_ONE) {
-		/* intersection of F_T and f_f */
-		x = n;
-		y = p->f_f_zero;
-		dx = p->t_e;
-		dy = p->f_e - y;
-	} else {
-		/* intersection of F_T and f_f(t >= 1) with compaction */
-		x = n + 1;
-		y = p->f_f_zero + p->R_f;
-		dx = p->t_e - 1;
-		dy = p->f_e - y;
-	}
-	(void) fprintf(predictions, "%lld %lld %lld %lld\n",
-	    (long long)x, (long long)y, (long long)dx, (long long)dy);
-
-	fflush(predictions);
-}
 
 void *
 compact(void *arg)
@@ -248,6 +137,101 @@ get_line(FILE *ifile, FILE *ofile, char *node, char *zone,
 	return (1);
 }
 
+/*
+ * Parse watermarks and zone_managed_pages values from /proc/zoneinfo
+ */
+int
+update_zone_watermarks(struct zone_hash_entry *zhe)
+{
+	FILE *fp = NULL;
+	size_t len = 100;
+	char *line = malloc(len);
+
+	fp = fopen(ZONEINFO, "r");
+	if (!fp)
+		return 0;
+
+	while ((fgets(line, len, fp) != NULL)) {
+		if (strncmp(line, "Node", 4) == 0) {
+			char node[20];
+			int nid;
+			char zone[20];
+			char zone_name[20];
+
+			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
+
+			if (strcmp(zhe->z_zone, zone_name) == 0) {
+				if (fgets(line, len, fp) == NULL)
+					return 0;
+
+				int i = 0;
+				unsigned long min, low, high, managed;
+
+				while (i < 7) {
+					if (fgets(line, len, fp) == NULL)
+						return 0;
+
+					unsigned long wmark;
+					char name[20];
+					sscanf(line, "%s %lu\n", name, &wmark);
+					if (i == 0)
+						min = wmark;
+					if (i == 1)
+						low = wmark;
+					if (i == 2)
+						high = wmark;
+					if (i == 6)
+						managed = wmark;
+					i++;
+				}
+
+				zhe->min = min;
+				zhe->low = low;
+				zhe->high = high;
+				zhe->managed = managed;
+
+				return 0;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Dynamically rescale the watermark_scale_factor to make kswapd more aggresive
+ */
+int
+rescale_watermarks(struct zone_hash_entry *zhe,
+			unsigned long rescale_watermark)
+{
+	int fd;
+	long scaled_watermark;
+	char scaled_wmark[20];;
+
+	/*
+	 * zone->_watermark[HIGH] = zone->_watermark[MIN] + (zone_managed_pages(zone) * watermark_scale_factor) / 10000
+	 */
+	scaled_watermark = (long)(((rescale_watermark - zhe->min) / 2) * (10000 / zhe->managed));
+	sprintf(scaled_wmark, "%ld", scaled_watermark);
+
+	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1)
+		return -1;
+
+	if (write(fd, scaled_wmark, sizeof(scaled_wmark)) != sizeof(scaled_wmark)) {
+		return -1;
+	}
+}
+
+unsigned long
+get_msecs(struct timespec *spec)
+{
+	if (!spec)
+		return -1;
+
+	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -320,6 +304,8 @@ main(int argc, char **argv)
 			}
 			zhe->z_next = zhe_list;
 			zhe_list = zhe;
+			update_zone_watermarks(zhe);
+			printf("%lu %lu %lu %lu\n", zhe->min, zhe->low, zhe->high, zhe->managed);
 			break;
 		default:
 			errflag++;
@@ -479,13 +465,14 @@ main(int argc, char **argv)
 	while (1) {
 		char nodestr[16];
 		char zonetype[16];
-		unsigned long nr_free[MAX_ORDER];
+		unsigned long nr_free[MAX_ORDER], nr_free_after[MAX_ORDER];
 		unsigned long total_free;
-		unsigned long free[MAX_ORDER];
+		struct frag_info free[MAX_ORDER];
 		int order;
-		struct prediction_struct prediction;
-		struct prediction_struct *result;
+		unsigned long result;
+		struct timespec spec, spec_after, spec_before;
 
+		clock_gettime(CLOCK_REALTIME, &spec_before);
 		if (!get_line(ifile, ofile, nodestr, zonetype, nr_free)) {
 			if (iflag) {
 				break;
@@ -513,51 +500,94 @@ main(int argc, char **argv)
 		 * order and so free[0] is overloaded with the total free
 		 * memory.
 		 */
-		total_free = free[0] = 0;
+		total_free = free[0].free_pages = 0;
 		for (order = 0; order < MAX_ORDER; order++) {
 			unsigned long free_pages;
 
 			free_pages = nr_free[order] << order;
 			total_free += free_pages;
 			if (order < MAX_ORDER - 1) {
-				free[order + 1] =
-				    free[order] + free_pages;
+				free[order + 1].free_pages =
+				    free[order].free_pages + free_pages;
+				clock_gettime(CLOCK_REALTIME, &spec);
+				free[order + 1].msecs = (long long)get_msecs(&spec);
 			}
 		}
-		free[0] = total_free;
+		free[0].free_pages = total_free;
 
 		/*
 		 * Offer the predictor the fragmented free memory vector but
 		 * do nothing else unless it issues a prediction.
 		 */
 		result = predict(free, zhe->z_lsq, threshold, rate,
-		    &prediction);
-		plot(zhe, free, result);
-		if (result == NULL)
-			continue;
+			zhe);
+		//plot(zhe, free, result);
 
-		/* Wake the compactor if requested. */
-		if (!Cflag)
-			continue;
-
-		if ((err = pthread_mutex_trylock(&nhe->n_lock)) != 0) {
-			if (err == EBUSY)
+		if (!get_line(ifile, ofile, nodestr, zonetype, nr_free_after)) {
+			if (iflag) {
+				break;
+			} else {
+				rewind(ifile);
+				sleep(1);
 				continue;
-			(void) fprintf(stderr, "pthread_mutex_lock: %s",
+			}
+		}
+
+		clock_gettime(CLOCK_REALTIME, &spec_after);
+
+		long time_elapsed = (get_msecs(&spec_after) - get_msecs(&spec_before));
+		long compacted_pages = 0;
+
+		/*
+		 * Get the number of higher order pages retrived in time_elapsed time.
+		 */
+		for (int i = 1; i < MAX_ORDER; i++) {
+			unsigned long curr_compacted_pages = nr_free_after[i] -
+				nr_free[i];
+
+			if (curr_compacted_pages > 0)
+				compacted_pages += curr_compacted_pages;
+		}
+
+		compaction_rate = compacted_pages / time_elapsed;
+
+		printf("compaction rate is %ld\n", compaction_rate);
+
+		if (result == 0)
+			continue;
+
+		/*
+		if (result & MEMPREDICT_RECLAIM) {
+			if (rescaled_wmark > 0)
+				rescale_wmark(prediction->rescaled_wmark);
+		}
+		*/
+		/* Wake the compactor if requested. */
+		/*
+		if (result & MEMPREDICT_COMPACT) {
+			if (!Cflag)
+				continue;
+
+			if ((err = pthread_mutex_trylock(&nhe->n_lock)) != 0) {
+				if (err == EBUSY)
+					continue;
+				(void) fprintf(stderr, "pthread_mutex_lock: %s",
+					strerror(err));
+				exit(1);
+			}
+			nhe->n_do_compact = 1;
+			if ((err = pthread_cond_signal(&nhe->n_cv)) != 0) {
+				(void) fprintf(stderr, "pthread_cond_signal: %s",
 				strerror(err));
-			exit(1);
+				exit(1);
+			}
+			if ((err = pthread_mutex_unlock(&nhe->n_lock)) != 0) {
+				(void) fprintf(stderr, "pthread_mutex_unlock: %s",
+				strerror(err));
+				exit(1);
+			}
 		}
-		nhe->n_do_compact = 1;
-		if ((err = pthread_cond_signal(&nhe->n_cv)) != 0) {
-			(void) fprintf(stderr, "pthread_cond_signal: %s",
-			    strerror(err));
-			exit(1);
-		}
-		if ((err = pthread_mutex_unlock(&nhe->n_lock)) != 0) {
-			(void) fprintf(stderr, "pthread_mutex_unlock: %s",
-			    strerror(err));
-			exit(1);
-		}
+		*/
 	}
 
 	return (0);
