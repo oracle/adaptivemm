@@ -18,6 +18,7 @@
 #define	BUDDYINFO		"/proc/buddyinfo"
 #define ZONEINFO		"/proc/zoneinfo"
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_rescale_factor"
+#define VMSTAT			"/proc/vmstat"
 
 struct node_hash_entry {
 	char *n_node_id;
@@ -196,6 +197,35 @@ update_zone_watermarks(struct zone_hash_entry *zhe)
 	}
 
 	return 0;
+}
+
+/*
+ * Get the number of pages stolen by kswapd from /proc/vmstat.
+ */
+unsigned long
+no_pages_reclaimed()
+{
+	FILE *fp = NULL;
+	size_t len = 100;
+	char *line = malloc(len);
+	unsigned long val;
+	char desc[100];
+
+	fp = fopen(VMSTAT, "r");
+	if (!fp)
+		return 0;
+
+	while ((fgets(line, len, fp) != NULL)) {
+		int ret = sscanf(line, "%s %lu\n", desc, &val );
+
+
+		if (strcmp(desc, "pgsteal_kswapd") == 0)
+			goto out;
+	}
+
+out:
+	free(line);
+	return val;
 }
 
 /*
@@ -471,8 +501,13 @@ main(int argc, char **argv)
 		int order;
 		unsigned long result;
 		struct timespec spec, spec_after, spec_before;
-
+		unsigned long scale_wmark = 0;
+		/*
+		 * Keep track of time to calculate the compaction and reclaim rates
+		 */
 		clock_gettime(CLOCK_REALTIME, &spec_before);
+		unsigned long reclaim_before = no_pages_reclaimed();
+
 		if (!get_line(ifile, ofile, nodestr, zonetype, nr_free)) {
 			if (iflag) {
 				break;
@@ -520,7 +555,7 @@ main(int argc, char **argv)
 		 * do nothing else unless it issues a prediction.
 		 */
 		result = predict(free, zhe->z_lsq, threshold, rate,
-			zhe);
+			zhe, &scale_wmark);
 		//plot(zhe, free, result);
 
 		if (!get_line(ifile, ofile, nodestr, zonetype, nr_free_after)) {
@@ -549,21 +584,19 @@ main(int argc, char **argv)
 				compacted_pages += curr_compacted_pages;
 		}
 
+		unsigned long reclaim_after = no_pages_reclaimed();
 		compaction_rate = compacted_pages / time_elapsed;
 
+		reclaim_rate = (reclaim_after - reclaim_before) / time_elapsed;
 		printf("compaction rate is %ld\n", compaction_rate);
 
 		if (result == 0)
 			continue;
 
-		/*
-		if (result & MEMPREDICT_RECLAIM) {
-			if (rescaled_wmark > 0)
-				rescale_wmark(prediction->rescaled_wmark);
-		}
-		*/
+		if (result & MEMPREDICT_RECLAIM && scale_wmark > 0)
+			rescale_watermarks(zhe, scale_wmark);
+
 		/* Wake the compactor if requested. */
-		/*
 		if (result & MEMPREDICT_COMPACT) {
 			if (!Cflag)
 				continue;
@@ -587,7 +620,7 @@ main(int argc, char **argv)
 				exit(1);
 			}
 		}
-		*/
+
 	}
 
 	return (0);

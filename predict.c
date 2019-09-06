@@ -107,7 +107,7 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
  */
 unsigned long
 predict(struct frag_info *frag_vec, struct lsq_struct *lsq, int threshold, int R_c,
-	struct zone_hash_entry *zhe)
+	struct zone_hash_entry *zhe, unsigned long *scale_wmark)
 {
 	int order;
 	long long m[MAX_ORDER];
@@ -124,6 +124,10 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq, int threshold, int R
 	if (!is_ready)
 		return retval;
 
+	if (frag_vec[0].free_pages < zhe->high) {
+		retval |= MEMPREDICT_RECLAIM;
+	}
+
 	if (m[0] >= 0) {
 		for (order = 1; order < MAX_ORDER; order++) {
 			if (m[0] == m[order])
@@ -138,9 +142,26 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq, int threshold, int R
 		}
 	}
 	else {
-		if (frag_vec[0].free_pages > ((MEMRECLAIM_THRESHOLD) * zhe->managed)/ 100) {
+		/*
+		 * Time taken to go below high_wmark.
+		 */
+		unsigned long time_taken = (zhe->high - c[0]) / m[0];
+
+		/*
+		 * Time to reclaim frag_vec[0].free_pages - zhe->high
+		 */
+		unsigned long time_to_reclaim = (frag_vec[0].free_pages - zhe->high) / reclaim_rate;
+
+		/*
+		 * If time taken to go below high_wmark is greater than
+		 * the time taken to reclaim the pages then we need to start kswapd
+		 * now.
+		 */
+		if (time_taken > time_to_reclaim) {
+			*scale_wmark = (frag_vec[0].free_pages - zhe->high);
 			retval |= MEMPREDICT_RECLAIM;
 		}
+
 	}
 
 	return retval;

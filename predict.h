@@ -50,7 +50,7 @@ struct zone_hash_entry {
 };
 
 unsigned long predict(struct frag_info *, struct lsq_struct *, int,
-    int, struct zone_hash_entry *);
+    int, struct zone_hash_entry *, unsigned long *);
 
 #ifdef __cplusplus
 }
