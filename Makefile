@@ -1,9 +1,11 @@
 CC=cc
-CFLAGS=-I. -Wall
+CFLAGS=-I. -Wall -g
 LDFLAGS=-lpthread
 OBJS=predict.o predictord.o
 
 .DEFAULT_GOAL := predictord
+
+all: predictord
 
 predict.o: predict.c predict_impl.h predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
