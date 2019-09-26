@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-#define	SUM_X	((COUNT * (1 - COUNT)) / 2)
-#define	SUM_XX	((COUNT * (COUNT - 1) * (2 * COUNT - 1)) / 6)
+#define	SUM_X	((LSQ_LOOKBACK * (1 - LSQ_LOOKBACK)) / 2)
+#define	SUM_XX	((LSQ_LOOKBACK * (LSQ_LOOKBACK - 1) * (2 * LSQ_LOOKBACK - 1)) / 6)
 
 #ifdef __cplusplus
 }
