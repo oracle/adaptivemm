@@ -1,11 +1,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "predict_impl.h"
+#include "predict.h"
 
 unsigned long mempredict_threshold = 1000;
-
-#define MEMRECLAIM_THRESHOLD 20
 
 /*
  * This function inserts the given value into the list of most recently seen
@@ -128,7 +126,7 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
  */
 unsigned long
 predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
-	unsigned long high_wmark, unsigned long *scale_wmark)
+	unsigned long high_wmark)
 {
 	int order;
 	long long m[MAX_ORDER];
@@ -199,15 +197,19 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	}
 	else {
 		/*
+		 * Trend line for overall free pages is showing a
+		 * negative trend. Check if we are approaching high
+		 * watermark faster than pages are being reclaimed.
 		 * If a reclaim rate has not been computed yet, do not
 		 * compute if it is time to start reclamation
 		 */
 		if (reclaim_rate == 0)
 			return 0;
+
 		/*
-		 * Time taken to go below high_wmark.
+		 * Time it will take to go below high_wmark.
 		 */
-		unsigned long time_taken = (high_wmark - c[0]) / m[0];
+		unsigned long time_taken = (frag_vec[0].free_pages - high_wmark) / abs(m[0]);
 
 		/*
 		 * Time to reclaim frag_vec[0].free_pages - high_wmark
@@ -220,11 +222,9 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * the time taken to reclaim the pages then we need to
 		 * start kswapd now.
 		 */
-		if (time_taken > time_to_reclaim) {
-			*scale_wmark = (frag_vec[0].free_pages - high_wmark);
+		if (time_taken >= time_to_reclaim) {
 			retval |= MEMPREDICT_RECLAIM;
 		}
-
 	}
 
 	return retval;

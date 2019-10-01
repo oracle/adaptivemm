@@ -20,14 +20,16 @@
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
 #define ZONEINFO		"/proc/zoneinfo"
-#define RESCALE_WMARK		"/proc/sys/vm/watermark_rescale_factor"
+#define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
 
 #define MAX_NUMANODES	1024
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
+unsigned long total_free;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
+int verbose;
 
 void
 compact(int node_id)
@@ -36,8 +38,8 @@ compact(int node_id)
 	int fd;
 	char c = '1';
 
-	if (snprintf(compactpath, sizeof (compactpath), COMPACT_PATH_FORMAT,
-	    node_id) >= sizeof (compactpath)) {
+	if (snprintf(compactpath, sizeof(compactpath), COMPACT_PATH_FORMAT,
+	    node_id) >= sizeof(compactpath)) {
 		(void) fprintf(stderr, "compactpath is too long");
 		exit(1);
 	}
@@ -47,7 +49,7 @@ compact(int node_id)
 		exit(1);
 	}
 
-	if (write(fd, &c, sizeof (c)) != sizeof (c)) {
+	if (write(fd, &c, sizeof(c)) != sizeof(c)) {
 		perror("writing to compaction path");
 		exit(1);
 	}
@@ -63,7 +65,7 @@ scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
 	unsigned int order;
 	char *t;
 
-	(void) strncpy(copy, line, sizeof (copy));
+	(void) strncpy(copy, line, sizeof(copy));
 
 	if ((t = strtok(copy, " ")) == NULL || strcmp(t, "Node") ||
 	    (t = strtok(NULL, ",")) == NULL || sscanf(t, "%s", node) != 1 ||
@@ -95,7 +97,7 @@ get_next_zone(FILE *ifile, FILE *ofile, int *nid, unsigned long *nr_free)
 	 * "Normal" zone or reach EOF
 	 */
 	while (1) {
-		if (fgets(line, sizeof (line), ifile) == NULL) {
+		if (fgets(line, sizeof(line), ifile) == NULL) {
 			if (feof(ifile)) {
 				return (-1);
 			} else {
@@ -224,32 +226,49 @@ out:
 /*
  * Dynamically rescale the watermark_scale_factor to make kswapd more aggresive
  */
-int
-rescale_watermarks(int nid, unsigned long rescale_watermark)
+void
+rescale_watermarks(int nid)
 {
-	int fd;
-	long scaled_watermark;
+	int fd, i;
+	unsigned long scaled_watermark, frac_free;
 	char scaled_wmark[20];;
+	unsigned long total_managed = 0;
 
-{
-	time_t curtime;
+	/*
+	 * Determine how urgent the situation is regarding remaining
+	 * free pages. Urgency is determined by the percentage of
+	 * managed pages still available. As this number gets lower,
+	 * watermark scale factor needs to go up to make kswapd
+	 * reclaim pages more aggressively.
+	 */
+	for (i=0; i<MAX_NUMANODES; i++)
+		total_managed += managed_pages[nid];
+	frac_free = (total_free*1000)/total_managed;
+	scaled_watermark = 1000 - frac_free;
+	if (scaled_watermark == 0)
+		return;
+	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
 
-	time(&curtime);
-	printf("DEBUG: %s\tAdjusting watermarks\n", ctime(&curtime));
+	if (verbose) {
+		time_t curtime;
+
+		time(&curtime);
+		printf("INFO: %s\tAdjusting watermarks. ", ctime(&curtime));
+		printf("New watermark scale factor = %s", scaled_wmark);
+	}
+
+	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
+		perror("Failed to open "RESCALE_WMARK);
+		return;
+	}
+
+	if (write(fd, scaled_wmark, sizeof(scaled_wmark)) < 0)
+		perror("Failed to write to "RESCALE_WMARK);
+	close(fd);
+	return;
 }
-	scaled_watermark = (long)(((rescale_watermark - min_wmark[nid]) / 2) * (10000 / managed_pages[nid]));
-	sprintf(scaled_wmark, "%ld", scaled_watermark);
 
-	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1)
-		return -1;
-
-	if (write(fd, scaled_wmark, sizeof(scaled_wmark)) !=
-		sizeof(scaled_wmark))
-		return -1;
-	return 0;
-}
-
-unsigned long
+static inline unsigned long
 get_msecs(struct timespec *spec)
 {
 	if (!spec)
@@ -270,16 +289,19 @@ main(int argc, char **argv)
 	char opath[PATH_MAX];
 	FILE *ifile;
 	FILE *ofile;
-	unsigned long last_bigpages[MAX_NUMANODES];
-	long time_elapsed;
+	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
+	unsigned long time_elapsed, reclaimed_pages;
 
-	while ((c = getopt(argc, argv, "o:")) != -1) {
+	while ((c = getopt(argc, argv, "vo:")) != -1) {
 		switch (c) {
 		case 'o':
 			if (oflag++)
 				errflag++;
 			else
 				obase = optarg;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		default:
 			errflag++;
@@ -309,8 +331,8 @@ main(int argc, char **argv)
 		perror("fopen(input file)");
 		exit(1);
 	}
-	if (oflag && snprintf(opath, sizeof (opath), "%s.input",
-				obase) >= sizeof (opath)) {
+	if (oflag && snprintf(opath, sizeof(opath), "%s.input",
+				obase) >= sizeof(opath)) {
 		(void) fprintf(stderr, "output path is too long");
 		exit(1);
 	}
@@ -335,14 +357,12 @@ main(int argc, char **argv)
 		int order, nid, retval;
 		unsigned long result = 0;
 		struct timespec spec, spec_after, spec_before;
-		unsigned long scale_wmark = 0;
 
 		/*
 		 * Keep track of time to calculate the compaction and
 		 * reclaim rates
 		 */
 		clock_gettime(CLOCK_REALTIME, &spec_before);
-		unsigned long reclaim_before = no_pages_reclaimed();
 
 		while ((retval = get_next_zone(ifile, ofile, &nid, nr_free)) != -1) {
 			if (retval == 0)
@@ -357,6 +377,7 @@ main(int argc, char **argv)
 			 * memory.
 			 */
 			total_free = free[0].free_pages = 0;
+			clock_gettime(CLOCK_REALTIME, &spec);
 			for (order = 0; order < MAX_ORDER; order++) {
 				unsigned long free_pages;
 
@@ -366,11 +387,11 @@ main(int argc, char **argv)
 					free[order + 1].free_pages =
 						free[order].free_pages +
 						free_pages;
-					clock_gettime(CLOCK_REALTIME, &spec);
 					free[order + 1].msecs = (long long)get_msecs(&spec);
 				}
 			}
 			free[0].free_pages = total_free;
+			free[0].msecs = (long long)get_msecs(&spec);
 
 			/*
 			 * Offer the predictor the fragmented free memory
@@ -378,7 +399,7 @@ main(int argc, char **argv)
 			 * prediction.
 			 */
 			result |= predict(free, page_lsq[nid],
-					high_wmark[nid], &scale_wmark);
+					high_wmark[nid]);
 			//plot(zhe, free, result);
 
 			if (last_bigpages[nid] != 0) {
@@ -391,7 +412,8 @@ main(int argc, char **argv)
 						(free[MAX_ORDER-1].free_pages -
 						last_bigpages[nid]) /
 						time_elapsed;
-					printf("compaction rate is %ld\n",
+					if (compaction_rate && verbose)
+						printf("** compaction rate is %ld pages/msec\n",
 						compaction_rate);
 				}
 			}
@@ -405,20 +427,26 @@ main(int argc, char **argv)
 				printf("DEBUG: %s\tTriggering compaction on node %d\n", ctime(&curtime), nid);
 				compact(nid);
 			}
+			total_free += free[0].free_pages;
 		}
 
-		clock_gettime(CLOCK_REALTIME, &spec_after);
+		reclaimed_pages = no_pages_reclaimed();
+		if (last_reclaimed) {
+			clock_gettime(CLOCK_REALTIME, &spec_after);
+			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
 
-		long time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
-		unsigned long reclaim_after = no_pages_reclaimed();
+			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
+			if (reclaim_rate && verbose)
+				printf("== reclamation rate is %ld pages/msec\n", reclaim_rate);
+		}
+		last_reclaimed = reclaimed_pages;
 
-		reclaim_rate = (reclaim_after - reclaim_before) / time_elapsed;
-		printf("reclamation rate is %ld\n", reclaim_rate);
-
-		if (result & MEMPREDICT_RECLAIM && scale_wmark > 0)
-			rescale_watermarks(nid, scale_wmark);
+		if (result & MEMPREDICT_RECLAIM)
+			rescale_watermarks(nid);
 
 		rewind(ifile);
+		result = 0;
+		total_free = 0;
 		sleep(PERIODICITY);
 	}
 

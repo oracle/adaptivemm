@@ -7,7 +7,7 @@ OBJS=predict.o predictord.o
 
 all: predictord
 
-predict.o: predict.c predict_impl.h predict.h
+predict.o: predict.c predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 predictord.o: predictord.c predict.h

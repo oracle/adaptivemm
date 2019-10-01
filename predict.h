@@ -21,8 +21,6 @@ struct lsq_struct {
 	int ready;
 	long long y[LSQ_LOOKBACK];
 	long long x[LSQ_LOOKBACK];
-	long long sum_xy;
-	long long sum_y;
 };
 
 enum output_type {
@@ -36,8 +34,7 @@ struct frag_info {
 	long long msecs;
 };
 
-unsigned long predict(struct frag_info *, struct lsq_struct *,
-    unsigned long, unsigned long *);
+unsigned long predict(struct frag_info *, struct lsq_struct *, unsigned long);
 
 #ifdef __cplusplus
 }
