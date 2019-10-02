@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include "predict.h"
 
+#define VERSION		"0.2"
+
 /* How often should data be sampled and trend analyzed*/
 #define PERIODICITY	3
 
@@ -314,10 +316,11 @@ help_msg(char *progname)
 	(void) fprintf(stderr,
 		    "usage: %s "
 		    "[-v] "
-		    "[-h|-?] "
+		    "[-h] "
 		    "[-o output_basename]\n"
+		    "Version %s\n"
 		    "\tNOTE: use multiple -v to increase verbosity\n",
-		    progname);
+		    progname, VERSION);
 }
 
 int
@@ -335,7 +338,7 @@ main(int argc, char **argv)
 	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
 	unsigned long time_elapsed, reclaimed_pages;
 
-	while ((c = getopt(argc, argv, "vo:")) != -1) {
+	while ((c = getopt(argc, argv, "hvo:")) != -1) {
 		switch (c) {
 		case 'o':
 			if (oflag++)
@@ -347,7 +350,6 @@ main(int argc, char **argv)
 			verbose++;
 			break;
 		case 'h':
-		case '?':
 			help_msg(argv[0]);
 			exit(0);
 		default:
