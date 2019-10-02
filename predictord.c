@@ -27,7 +27,7 @@
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
-unsigned long total_free;
+unsigned long free_pages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int verbose;
 
@@ -227,7 +227,7 @@ out:
  * Dynamically rescale the watermark_scale_factor to make kswapd more aggresive
  */
 void
-rescale_watermarks(int nid)
+rescale_watermarks(int scale_up)
 {
 	int fd, i;
 	unsigned long scaled_watermark, frac_free;
@@ -239,31 +239,62 @@ rescale_watermarks(int nid)
 	 * free pages. Urgency is determined by the percentage of
 	 * managed pages still available. As this number gets lower,
 	 * watermark scale factor needs to go up to make kswapd
-	 * reclaim pages more aggressively.
+	 * reclaim pages more aggressively. Compute scale factor as
+	 * multiples of 10.
 	 */
 	for (i=0; i<MAX_NUMANODES; i++)
-		total_managed += managed_pages[nid];
-	frac_free = (total_free*1000)/total_managed;
-	scaled_watermark = 1000 - frac_free;
+		total_managed += managed_pages[i];
+	frac_free = (free_pages*1000)/total_managed;
+	scaled_watermark = ((unsigned long)(1000 - frac_free)/10)*10;
 	if (scaled_watermark == 0)
 		return;
-	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
+
+	if ((fd = open(RESCALE_WMARK, O_RDONLY)) == -1) {
+		perror("Failed to open "RESCALE_WMARK);
+		return;
+	}
+
+	/*
+	 * Get the current watermark scale factor. If it is the same
+	 * as new scale factor, it means current setting is not
+	 * working well enough already. Raise it by 10% instead.
+	 */
+	if (read(fd, scaled_wmark, sizeof(scaled_wmark)) < 0) {
+		perror("Failed to read from "RESCALE_WMARK);
+		goto out;
+	}
+	close(fd);
+	if (scale_up && (atoi(scaled_wmark) == scaled_watermark))
+		scaled_watermark = scaled_watermark * 1.1;
+	/*
+	 * Highest possible value for watermark scaling factor is
+	 * 1000. If current scale is already set to 1000, no point
+	 * in updating it.
+	 */
+	if (scaled_watermark > 1000)
+		scaled_watermark = 1000;
+	if (atoi(scaled_wmark) == scaled_watermark)
+		goto out;
 
 	if (verbose) {
 		time_t curtime;
 
 		time(&curtime);
 		printf("INFO: %s\tAdjusting watermarks. ", ctime(&curtime));
-		printf("New watermark scale factor = %s", scaled_wmark);
+		printf("\tcurrent watermark scale factor = %s", scaled_wmark);
 	}
 
+	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
+	if (verbose)
+		printf("\tNew watermark scale factor = %s", scaled_wmark);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
 		perror("Failed to open "RESCALE_WMARK);
 		return;
 	}
-
 	if (write(fd, scaled_wmark, sizeof(scaled_wmark)) < 0)
 		perror("Failed to write to "RESCALE_WMARK);
+
+out:
 	close(fd);
 	return;
 }
@@ -275,6 +306,18 @@ get_msecs(struct timespec *spec)
 		return -1;
 
 	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
+}
+
+void
+help_msg(char *progname)
+{
+	(void) fprintf(stderr,
+		    "usage: %s "
+		    "[-v] "
+		    "[-h|-?] "
+		    "[-o output_basename]\n"
+		    "\tNOTE: use multiple -v to increase verbosity\n",
+		    progname);
 }
 
 int
@@ -301,8 +344,12 @@ main(int argc, char **argv)
 				obase = optarg;
 			break;
 		case 'v':
-			verbose = 1;
+			verbose++;
 			break;
+		case 'h':
+		case '?':
+			help_msg(argv[0]);
+			exit(0);
 		default:
 			errflag++;
 			break;
@@ -310,10 +357,7 @@ main(int argc, char **argv)
 	}
 
 	if (errflag) {
-		(void) fprintf(stderr,
-		    "usage: %s "
-		    "[-o output_basename]\n",
-		    argv[0]);
+		help_msg(argv[0]);
 		exit(1);
 	}
 
@@ -352,7 +396,6 @@ main(int argc, char **argv)
 
 	while (1) {
 		unsigned long nr_free[MAX_ORDER];
-		unsigned long total_free;
 		struct frag_info free[MAX_ORDER];
 		int order, nid, retval;
 		unsigned long result = 0;
@@ -362,9 +405,12 @@ main(int argc, char **argv)
 		 * Keep track of time to calculate the compaction and
 		 * reclaim rates
 		 */
+		free_pages = 0;
 		clock_gettime(CLOCK_REALTIME, &spec_before);
 
 		while ((retval = get_next_zone(ifile, ofile, &nid, nr_free)) != -1) {
+			unsigned long total_free;
+
 			if (retval == 0)
 				break;
 
@@ -412,7 +458,7 @@ main(int argc, char **argv)
 						(free[MAX_ORDER-1].free_pages -
 						last_bigpages[nid]) /
 						time_elapsed;
-					if (compaction_rate && verbose)
+					if (compaction_rate && (verbose > 1))
 						printf("** compaction rate is %ld pages/msec\n",
 						compaction_rate);
 				}
@@ -427,7 +473,7 @@ main(int argc, char **argv)
 				printf("DEBUG: %s\tTriggering compaction on node %d\n", ctime(&curtime), nid);
 				compact(nid);
 			}
-			total_free += free[0].free_pages;
+			free_pages += free[0].free_pages;
 		}
 
 		reclaimed_pages = no_pages_reclaimed();
@@ -436,17 +482,21 @@ main(int argc, char **argv)
 			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
-			if (reclaim_rate && verbose)
+			if (reclaim_rate && (verbose > 1))
 				printf("== reclamation rate is %ld pages/msec\n", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
 
-		if (result & MEMPREDICT_RECLAIM)
-			rescale_watermarks(nid);
+		if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
+			if (result & MEMPREDICT_RECLAIM)
+				rescale_watermarks(1);
+			else
+				rescale_watermarks(0);
+			update_zone_watermarks();
+		}
 
 		rewind(ifile);
 		result = 0;
-		total_free = 0;
 		sleep(PERIODICITY);
 	}
 
