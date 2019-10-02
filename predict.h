@@ -8,10 +8,11 @@
 extern "C" {
 #endif
 
-#define	MAX_ORDER	11
-#define	LSQ_LOOKBACK	8
-#define MEMPREDICT_RECLAIM 0x01
-#define MEMPREDICT_COMPACT 0x02
+#define	MAX_ORDER		11
+#define	LSQ_LOOKBACK		8
+#define MEMPREDICT_RECLAIM	0x01
+#define MEMPREDICT_COMPACT	0x02
+#define MEMPREDICT_LOWER_WMARKS	0x04
 
 long compaction_rate;
 long reclaim_rate;

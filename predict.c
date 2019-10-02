@@ -167,6 +167,11 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	 * for higher orders.
 	 */
 	if (m[0] >= 0) {
+		/*
+		 * Since number of free pages is going up, it is
+		 * time to adjust watermarks down.
+		 */
+		retval |= MEMPREDICT_LOWER_WMARKS;
 		for (order = 1; order < MAX_ORDER; order++) {
 			/*
 			 * If lines are parallel, then they never intersect.
