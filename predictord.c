@@ -159,14 +159,14 @@ update_zone_watermarks()
 				unsigned long min, low, high, managed;
 
 				if (fgets(line, len, fp) == NULL)
-					return 0;
+					goto out;
 
 				while (i < 7) {
 					unsigned long wmark;
 					char name[20];
 
 					if (fgets(line, len, fp) == NULL)
-						return 0;
+						goto out;
 
 					sscanf(line, "%s %lu\n", name, &wmark);
 					switch (i) {
@@ -194,6 +194,8 @@ update_zone_watermarks()
 		}
 	}
 
+out:
+	fclose(fp);
 	return 0;
 }
 
@@ -276,7 +278,7 @@ rescale_watermarks(int scale_up)
 	if (scaled_watermark > 1000)
 		scaled_watermark = 1000;
 	if (atoi(scaled_wmark) == scaled_watermark)
-		goto out;
+		return;
 
 	if (verbose) {
 		time_t curtime;
