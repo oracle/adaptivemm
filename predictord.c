@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include "predict.h"
 
-#define VERSION		"0.2"
+#define VERSION		"0.3"
 
 /* How often should data be sampled and trend analyzed*/
 #define PERIODICITY	3
