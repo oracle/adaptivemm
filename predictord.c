@@ -14,10 +14,12 @@
 #include <unistd.h>
 #include "predict.h"
 
-#define VERSION		"0.3"
+#define VERSION		"0.4"
 
 /* How often should data be sampled and trend analyzed*/
-#define PERIODICITY	3
+#define LOW_PERIODICITY		30
+#define NORM_PERIODICITY	15
+#define HIGH_PERIODICITY	3
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
@@ -228,7 +230,8 @@ out:
 }
 
 /*
- * Dynamically rescale the watermark_scale_factor to make kswapd more aggresive
+ * Dynamically rescale the watermark_scale_factor to make kswapd
+ * more aggressive
  */
 void
 rescale_watermarks(int scale_up)
@@ -295,7 +298,7 @@ rescale_watermarks(int scale_up)
 		perror("Failed to open "RESCALE_WMARK);
 		return;
 	}
-	if (write(fd, scaled_wmark, sizeof(scaled_wmark)) < 0)
+	if (write(fd, scaled_wmark, strlen(scaled_wmark)) < 0)
 		perror("Failed to write to "RESCALE_WMARK);
 
 out:
@@ -312,23 +315,63 @@ get_msecs(struct timespec *spec)
 	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
 }
 
+/*
+ * check_permissions() - Check all required permissions for this program to
+ *			run succesfully
+ */
+static int
+check_permissions(void)
+{
+	int fd;
+	char tmpstr[40];
+
+	/*
+	 * Make sure running kernel supports watermark_scale_factor file
+	 */
+	if ((fd = open(RESCALE_WMARK, O_RDONLY)) == -1) {
+		perror("ERROR: Can not open "RESCALE_WMARK);
+		return 0;
+	}
+
+	/* Can we write to this file */
+	if (read(fd, tmpstr, sizeof(tmpstr)) < 0) {
+		perror("ERROR: Can not read "RESCALE_WMARK);
+		return 0;
+	}
+	close(fd);
+	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
+		perror("ERROR: Can not open "RESCALE_WMARK);
+		return 0;
+	}
+
+	if (write(fd, tmpstr, strlen(tmpstr)) < 0) {
+		perror("ERROR: Can not write to "RESCALE_WMARK);
+		return 0;
+	}
+	close(fd);
+
+	return 1;
+}
+
 void
 help_msg(char *progname)
 {
 	(void) fprintf(stderr,
 		    "usage: %s "
+		    "[-a <level>] "
 		    "[-v] "
 		    "[-h] "
 		    "[-o output_basename]\n"
 		    "Version %s\n"
-		    "\tNOTE: use multiple -v to increase verbosity\n",
+		    "\tNOTE: use multiple -v to increase verbosity\n"
+		    "\tAggressivenes levels for -a option are 1 (high), 2(normal) and 3(low)\n",
 		    progname, VERSION);
 }
 
 int
 main(int argc, char **argv)
 {
-	int c, i;
+	int c, i, aggressiveness = 2;
 	int oflag = 0;
 	char *obase;
 	int errflag = 0;
@@ -340,8 +383,13 @@ main(int argc, char **argv)
 	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
 	unsigned long time_elapsed, reclaimed_pages;
 
-	while ((c = getopt(argc, argv, "hvo:")) != -1) {
+	while ((c = getopt(argc, argv, "a:hvo:")) != -1) {
 		switch (c) {
+		case 'a':
+			aggressiveness = atoi(optarg);
+			if ((aggressiveness < 1) || (aggressiveness > 3))
+				aggressiveness = 2;
+			break;
 		case 'o':
 			if (oflag++)
 				errflag++;
@@ -364,6 +412,9 @@ main(int argc, char **argv)
 		help_msg(argv[0]);
 		exit(1);
 	}
+
+	if (!check_permissions())
+		exit(1);
 
 	update_zone_watermarks();
 
@@ -462,7 +513,7 @@ main(int argc, char **argv)
 						(free[MAX_ORDER-1].free_pages -
 						last_bigpages[nid]) /
 						time_elapsed;
-					if (compaction_rate && (verbose > 1))
+					if (compaction_rate && (verbose > 2))
 						printf("** compaction rate is %ld pages/msec\n",
 						compaction_rate);
 				}
@@ -474,7 +525,8 @@ main(int argc, char **argv)
 				time_t curtime;
 
 				time(&curtime);
-				printf("DEBUG: %s\tTriggering compaction on node %d\n", ctime(&curtime), nid);
+				if (verbose > 1)
+					printf("INFO: %s\tTriggering compaction on node %d\n", ctime(&curtime), nid);
 				compact(nid);
 			}
 			free_pages += free[0].free_pages;
@@ -486,7 +538,7 @@ main(int argc, char **argv)
 			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
-			if (reclaim_rate && (verbose > 1))
+			if (reclaim_rate && (verbose > 2))
 				printf("== reclamation rate is %ld pages/msec\n", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
@@ -501,7 +553,17 @@ main(int argc, char **argv)
 
 		rewind(ifile);
 		result = 0;
-		sleep(PERIODICITY);
+		switch (aggressiveness) {
+			case 1:
+				sleep(HIGH_PERIODICITY);
+				break;
+			case 2:
+				sleep(NORM_PERIODICITY);
+				break;
+			case 3:
+				sleep(LOW_PERIODICITY);
+				break;
+		}
 	}
 
 	return (0);
