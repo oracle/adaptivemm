@@ -1,6 +1,6 @@
 CC=cc
 CFLAGS=-I. -Wall -g
-LDFLAGS=-lpthread
+LDFLAGS=-lrt
 OBJS=predict.o predictord.o
 
 .DEFAULT_GOAL := predictord

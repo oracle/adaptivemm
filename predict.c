@@ -155,10 +155,12 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	if (!is_ready)
 		return retval;
 
+#if 0
 	if (frag_vec[0].free_pages < high_wmark) {
 		retval |= MEMPREDICT_RECLAIM;
 		return retval;
 	}
+#endif
 
 	/*
 	 * Trend line for each order page is available now. If the trend
