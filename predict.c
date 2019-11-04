@@ -133,6 +133,9 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	int is_ready = 1;
 	unsigned long retval = 0;
 	unsigned long time_taken, time_to_catchup;
+	long long x_cross, y_cross;
+	struct timespec tspec;
+
 
 	/*
 	 * Compute the trend line for fragmentation on each order page.
@@ -170,48 +173,11 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	 * for higher orders.
 	 */
 	if (m[0] >= 0) {
-		long long x_cross, y_cross;
-		struct timespec tspec;
-
 		/*
 		 * Since number of free pages is going up, it is
 		 * time to adjust watermarks down.
 		 */
 		retval |= MEMPREDICT_LOWER_WMARKS;
-		for (order = 1; order < MAX_ORDER; order++) {
-			/*
-			 * If lines are parallel, then they never intersect.
-			 */
-			if (m[0] == m[order])
-				continue;
-
-			if (compaction_rate == 0)
-				return 0;
-			/*
-			 * Find the point of intersection of the two lines.
-			 * The point of intersection represents 100%
-			 * fragmentation for this order.
-			 */
-			x_cross = ((c[0] - c[order]) * 100) /
-						(m[order] - m[0]);
-			y_cross = ((m[order] * c[0]) - (m[0] * c[order])) /
-					(m[order] - m[0]);
-
-			/*
-			 * If they intersect anytime soon in the future
-			 * or intersected recently in the past, then it
-			 * is time for compaction and there is no need
-			 * to continue evaluating remaining order pages
-			 */
-			clock_gettime(CLOCK_REALTIME, &tspec);
-			time_taken = x_cross - (tspec.tv_sec * 1000) +
-					(tspec.tv_nsec / 1000);
-			time_to_catchup = (c[0] - y_cross) / compaction_rate;
-			if (time_taken >= time_to_catchup) {
-				retval |= MEMPREDICT_COMPACT;
-				return retval;
-			}
-		}
 	}
 	else {
 		/*
@@ -242,6 +208,45 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 */
 		if (time_taken >= time_to_catchup) {
 			retval |= MEMPREDICT_RECLAIM;
+		}
+	}
+
+	/*
+	 * Check if system is running low on higher order pages and needs
+	 * comapction
+	 */
+	for (order = 1; order < MAX_ORDER; order++) {
+		/*
+		 * If lines are parallel, then they never intersect.
+		 */
+		if (m[0] == m[order])
+			continue;
+
+		if (compaction_rate == 0)
+			return 0;
+		/*
+		 * Find the point of intersection of the two lines.
+		 * The point of intersection represents 100%
+		 * fragmentation for this order.
+		 */
+		x_cross = ((c[0] - c[order]) * 100) /
+					(m[order] - m[0]);
+		y_cross = ((m[order] * c[0]) - (m[0] * c[order])) /
+				(m[order] - m[0]);
+
+		/*
+		 * If they intersect anytime soon in the future
+		 * or intersected recently in the past, then it
+		 * is time for compaction and there is no need
+		 * to continue evaluating remaining order pages
+		 */
+		clock_gettime(CLOCK_REALTIME, &tspec);
+		time_taken = x_cross - (tspec.tv_sec * 1000) +
+				(tspec.tv_nsec / 1000);
+		time_to_catchup = (c[0] - y_cross) / compaction_rate;
+		if (time_taken >= time_to_catchup) {
+			retval |= MEMPREDICT_COMPACT;
+			break;;
 		}
 	}
 

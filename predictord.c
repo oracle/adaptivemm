@@ -266,6 +266,8 @@ rescale_watermarks(int scale_up)
 		goto out;
 	}
 	close(fd);
+	/* strip off trailing CR from current watermark scale factor */
+	scaled_wmark[strlen(scaled_wmark)-1] = 0;
 
 	/*
 	 * Compute average high and low watermarks across nodes
@@ -360,14 +362,14 @@ rescale_watermarks(int scale_up)
 
 		time(&curtime);
 		log_msg("INFO: %s\tAdjusting watermarks. ", ctime(&curtime));
-		log_msg("\tcurrent watermark scale factor = %s", scaled_wmark);
+		log_msg("current watermark scale factor = %s\n", scaled_wmark);
 	}
 	if (dry_run)
 		goto out;
 
-	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
 	if (verbose)
-		log_msg("\tNew watermark scale factor = %s", scaled_wmark);
+		log_msg("\tNew watermark scale factor = %ld\n", scaled_watermark);
+	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
 		perror("Failed to open "RESCALE_WMARK);
 		return;
