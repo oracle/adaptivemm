@@ -1,21 +1,21 @@
 CC=cc
 CFLAGS=-I. -Wall -g
 LDFLAGS=-lrt
-OBJS=predict.o predictord.o
+OBJS=predict.o memoptimizer.o
 
-.DEFAULT_GOAL := predictord
+.DEFAULT_GOAL := memoptimizer
 
-all: predictord
+all: memoptimizer
 
 predict.o: predict.c predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-predictord.o: predictord.c predict.h
+memoptimizer.o: memoptimizer.c predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-predictord: $(OBJS)
+memoptimizer: $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm $(OBJS) predictord
+	rm $(OBJS) memoptimizer
 
