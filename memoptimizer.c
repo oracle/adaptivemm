@@ -8,13 +8,15 @@
 #include <search.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
+#include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "predict.h"
 
-#define VERSION		"0.6"
+#define VERSION		"0.7"
 
 /* How often should data be sampled and trend analyzed*/
 #define LOW_PERIODICITY		30
@@ -34,9 +36,52 @@ unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
 unsigned long total_free_pages, total_cache_pages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int verbose, dry_run;
+int debug_mode = 0;
 unsigned long maxwsf = 1000;
 
-#define log_msg		printf
+#define log_err(...)	log_msg(LOG_ERR, __VA_ARGS__)
+#define log_warn(...)	log_msg(LOG_WARNING, __VA_ARGS__)
+#define log_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
+#define log_dbg(...)	log_msg(LOG_DEBUG, __VA_ARGS__)
+
+void
+log_msg(int level, char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	if (debug_mode) {
+		char stamp[32], prepend[16];
+		time_t now;
+		struct tm *timenow;
+
+		now = time(NULL);
+		timenow = localtime(&now);
+		strftime(stamp, 32, "%b %d %T", timenow);
+		printf("%s ", stamp);
+		switch (level) {
+			case LOG_ERR:
+				strcpy(prepend, "ERROR:");
+				break;
+			case LOG_WARNING:
+				strcpy(prepend, "Warning:");
+				break;
+			case LOG_INFO:
+				strcpy(prepend, "Info:");
+				break;
+			case LOG_DEBUG:
+				strcpy(prepend, "Debug:");
+				break;
+		}
+		printf("%s ", prepend);
+		vprintf(fmt, args);
+		printf("\n");
+	}
+	else {
+		vsyslog(level, fmt, args);
+	}
+	va_end(args);
+}
 
 void
 compact(int node_id)
@@ -47,17 +92,17 @@ compact(int node_id)
 
 	if (snprintf(compactpath, sizeof(compactpath), COMPACT_PATH_FORMAT,
 	    node_id) >= sizeof(compactpath)) {
-		(void) fprintf(stderr, "compactpath is too long");
+		(void) log_err("compactpath is too long");
 		exit(1);
 	}
 
 	if ((fd = open(compactpath, O_WRONLY)) == -1) {
-		perror("opening compaction path");
+		log_err("opening compaction path (%s)", strerror(errno));
 		exit(1);
 	}
 
 	if (write(fd, &c, sizeof(c)) != sizeof(c)) {
-		perror("writing to compaction path");
+		log_err("writing to compaction path (%s)", strerror(errno));
 		exit(1);
 	}
 
@@ -94,7 +139,7 @@ scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
  * return 1 if successful, 0 on failure or -1 on EOF.
  */
 int
-get_next_zone(FILE *ifile, FILE *ofile, int *nid, unsigned long *nr_free)
+get_next_zone(FILE *ifile, int *nid, unsigned long *nr_free)
 {
 	char line[LINE_MAX];
 	char node[10], zone[10];
@@ -108,24 +153,14 @@ get_next_zone(FILE *ifile, FILE *ofile, int *nid, unsigned long *nr_free)
 			if (feof(ifile)) {
 				return (-1);
 			} else {
-				(void) fprintf(stderr, "fgets(): %s",
+				log_err("fgets(): %s",
 						strerror(ferror(ifile)));
 				return 0;
 			}
 		}
 
-		if (ofile) {
-			size_t size = strnlen(line, LINE_MAX);
-
-			if (fwrite(line, size, 1, ofile) != 1) {
-				(void) fprintf(stderr, "fwrite(): %s",
-						strerror(ferror(ofile)));
-				return 0;
-			}
-		}
-
 		if (!scan_line(line, node, zone, nr_free)) {
-			(void) fprintf(stderr, "invalid input: %s", line);
+			log_err("invalid input: %s", line);
 			return 0;
 		}
 		if (strcmp(zone, "Normal") == 0)
@@ -245,7 +280,7 @@ rescale_watermarks(int scale_up)
 {
 	int fd, i, count;
 	unsigned long scaled_watermark, frac_free;
-	char scaled_wmark[20];;
+	char scaled_wmark[20], *c;
 	unsigned long total_managed = 0;
 	unsigned long lmark, hmark;
 
@@ -257,17 +292,18 @@ rescale_watermarks(int scale_up)
 	 * Get the current watermark scale factor.
 	 */
 	if ((fd = open(RESCALE_WMARK, O_RDONLY)) == -1) {
-		perror("Failed to open "RESCALE_WMARK);
+		log_err("Failed to open "RESCALE_WMARK" (%s)", strerror(errno));
 		return;
 	}
 
 	if (read(fd, scaled_wmark, sizeof(scaled_wmark)) < 0) {
-		perror("Failed to read from "RESCALE_WMARK);
+		log_err("Failed to read from "RESCALE_WMARK" (%s)", strerror(errno));
 		goto out;
 	}
 	close(fd);
 	/* strip off trailing CR from current watermark scale factor */
-	scaled_wmark[strlen(scaled_wmark)-1] = 0;
+	c = index(scaled_wmark, '\n');
+	*c = 0;
 
 	/*
 	 * Compute average high and low watermarks across nodes
@@ -357,25 +393,20 @@ rescale_watermarks(int scale_up)
 	if (atoi(scaled_wmark) == scaled_watermark)
 		return;
 
-	if (verbose) {
-		time_t curtime;
-
-		time(&curtime);
-		log_msg("INFO: %s\tAdjusting watermarks. ", ctime(&curtime));
-		log_msg("current watermark scale factor = %s\n", scaled_wmark);
-	}
+	if (verbose)
+		log_info("Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
 	if (dry_run)
 		goto out;
 
 	if (verbose)
-		log_msg("\tNew watermark scale factor = %ld\n", scaled_watermark);
+		log_info("New watermark scale factor = %ld", scaled_watermark);
 	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
-		perror("Failed to open "RESCALE_WMARK);
+		log_err("Failed to open "RESCALE_WMARK" (%s)", strerror(errno));
 		return;
 	}
 	if (write(fd, scaled_wmark, strlen(scaled_wmark)) < 0)
-		perror("Failed to write to "RESCALE_WMARK);
+		log_err("Failed to write to "RESCALE_WMARK" (%s)", strerror(errno));
 
 out:
 	close(fd);
@@ -405,23 +436,23 @@ check_permissions(void)
 	 * Make sure running kernel supports watermark_scale_factor file
 	 */
 	if ((fd = open(RESCALE_WMARK, O_RDONLY)) == -1) {
-		perror("ERROR: Can not open "RESCALE_WMARK);
+		log_err("Can not open "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 
 	/* Can we write to this file */
 	if (read(fd, tmpstr, sizeof(tmpstr)) < 0) {
-		perror("ERROR: Can not read "RESCALE_WMARK);
+		log_err("Can not read "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 	close(fd);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
-		perror("ERROR: Can not open "RESCALE_WMARK);
+		log_err("Can not open "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 
 	if (write(fd, tmpstr, strlen(tmpstr)) < 0) {
-		perror("ERROR: Can not write to "RESCALE_WMARK);
+		log_err("Can not write to "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 	close(fd);
@@ -432,17 +463,18 @@ check_permissions(void)
 void
 help_msg(char *progname)
 {
-	(void) fprintf(stderr,
+	(void) printf(
 		    "usage: %s "
+		    "[-d] "
 		    "[-v] "
 		    "[-h] "
 		    "[-s] "
-		    "[-m <max_gb>]\n"
-		    "[-a <level>] "
-		    "[-o output_basename]\n"
+		    "[-m <max_gb>] "
+		    "[-a <level>]\n"
 		    "Version %s\n"
 		    "Options:\n"
 		    "\t-v\tVerbose mode (use multiple to increase verbosity)\n"
+		    "\t-d\tDebug mode (do not run as daemon)\n"
 		    "\t-h\tHelp message\n"
 		    "\t-s\tSimulate a run (dry run)\n"
 		    "\t-m\tMaximum allowed gap between high and low watermarks in GB\n"
@@ -454,19 +486,14 @@ int
 main(int argc, char **argv)
 {
 	int c, i, aggressiveness = 2;
-	int oflag = 0;
-	char *obase;
 	int errflag = 0;
-	int fd;
 	char *ipath;
-	char opath[PATH_MAX];
 	FILE *ifile;
-	FILE *ofile;
 	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
 	unsigned long time_elapsed, reclaimed_pages, maxgap;
 
 	maxgap = 0;
-	while ((c = getopt(argc, argv, "a:m:hsvo:")) != -1) {
+	while ((c = getopt(argc, argv, "a:m:hsvd")) != -1) {
 		switch (c) {
 		case 'a':
 			aggressiveness = atoi(optarg);
@@ -476,11 +503,8 @@ main(int argc, char **argv)
 		case 'm':
 			maxgap = atoi(optarg);
 			break;
-		case 'o':
-			if (oflag++)
-				errflag++;
-			else
-				obase = optarg;
+		case 'd':
+			debug_mode = 1;
 			break;
 		case 'v':
 			/* Ignore in case of dry run */
@@ -490,6 +514,7 @@ main(int argc, char **argv)
 		case 's':
 			dry_run = 1;
 			verbose = 2;
+			debug_mode = 1;
 			break;
 		case 'h':
 			help_msg(argv[0]);
@@ -499,6 +524,14 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+
+	openlog("Memotimizer", LOG_PID, LOG_DAEMON);
+	/* Become a daemon unless -d was specified */
+	if (!debug_mode)
+		if (daemon(0, 0) != 0) {
+			log_err("Failed to become daemon. %s", strerror(errno));
+			exit(1);
+		}
 
 	if (errflag) {
 		help_msg(argv[0]);
@@ -539,26 +572,8 @@ main(int argc, char **argv)
 
 	ipath = BUDDYINFO;
 	if ((ifile = fopen(ipath, "r")) == NULL) {
-		perror("fopen(input file)");
+		log_err("fopen(input file)");
 		exit(1);
-	}
-	if (oflag && snprintf(opath, sizeof(opath), "%s.input",
-				obase) >= sizeof(opath)) {
-		(void) fprintf(stderr, "output path is too long");
-		exit(1);
-	}
-	if (!oflag) {
-		ofile = NULL;
-	} else {
-		if ((fd = open(opath, O_EXCL|O_CREAT|O_WRONLY,
-		    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) == -1) {
-			perror("open(output path)");
-			exit(1);
-		}
-		if ((ofile = fdopen(fd, "w")) == NULL) {
-			perror("fdopen");
-			exit(1);
-		}
 	}
 
 	while (1) {
@@ -575,7 +590,7 @@ main(int argc, char **argv)
 		total_free_pages = 0;
 		clock_gettime(CLOCK_REALTIME, &spec_before);
 
-		while ((retval = get_next_zone(ifile, ofile, &nid, nr_free)) != -1) {
+		while ((retval = get_next_zone(ifile, &nid, nr_free)) != -1) {
 			unsigned long total_free;
 
 			if (retval == 0)
@@ -626,7 +641,7 @@ main(int argc, char **argv)
 						last_bigpages[nid]) /
 						time_elapsed;
 					if (compaction_rate && (verbose > 2))
-						log_msg("** compaction rate is %ld pages/msec\n",
+						log_info("** compaction rate is %ld pages/msec",
 						compaction_rate);
 				}
 			}
@@ -634,11 +649,9 @@ main(int argc, char **argv)
 
 			/* Wake the compactor if requested. */
 			if (result & MEMPREDICT_COMPACT) {
-				time_t curtime;
-
-				time(&curtime);
 				if (verbose > 1)
-					log_msg("INFO: %s\tTriggering compaction on node %d\n", ctime(&curtime), nid);
+					//log_info("Triggering compaction on node %d", nid);
+					log_msg(LOG_INFO, "Triggering compaction on node %d", nid);
 				if (!dry_run)
 					compact(nid);
 			}
@@ -652,7 +665,7 @@ main(int argc, char **argv)
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
 			if (reclaim_rate && (verbose > 2))
-				log_msg("== reclamation rate is %ld pages/msec\n", reclaim_rate);
+				log_info("reclamation rate is %ld pages/msec", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
 
@@ -679,5 +692,6 @@ main(int argc, char **argv)
 		}
 	}
 
-	return (0);
+	closelog();
+	return(0);
 }
