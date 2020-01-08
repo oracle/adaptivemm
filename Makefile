@@ -17,5 +17,5 @@ memoptimizer: $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm $(OBJS) memoptimizer
+	rm -f $(OBJS) memoptimizer
 
