@@ -525,7 +525,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	openlog("Memotimizer", LOG_PID, LOG_DAEMON);
+	openlog("memoptimizer", LOG_PID, LOG_DAEMON);
 	/* Become a daemon unless -d was specified */
 	if (!debug_mode)
 		if (daemon(0, 0) != 0) {
