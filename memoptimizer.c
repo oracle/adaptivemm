@@ -35,14 +35,8 @@ unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
 unsigned long total_free_pages, total_cache_pages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
-int verbose, dry_run;
-int debug_mode = 0;
+int dry_run;
 unsigned long maxwsf = 1000;
-
-#define log_err(...)	log_msg(LOG_ERR, __VA_ARGS__)
-#define log_warn(...)	log_msg(LOG_WARNING, __VA_ARGS__)
-#define log_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
-#define log_dbg(...)	log_msg(LOG_DEBUG, __VA_ARGS__)
 
 void
 log_msg(int level, char *fmt, ...)
@@ -628,7 +622,6 @@ main(int argc, char **argv)
 			 */
 			result |= predict(free, page_lsq[nid],
 					high_wmark[nid]);
-			//plot(zhe, free, result);
 
 			if (last_bigpages[nid] != 0) {
 				clock_gettime(CLOCK_REALTIME, &spec_after);
@@ -650,8 +643,7 @@ main(int argc, char **argv)
 			/* Wake the compactor if requested. */
 			if (result & MEMPREDICT_COMPACT) {
 				if (verbose > 1)
-					//log_info("Triggering compaction on node %d", nid);
-					log_msg(LOG_INFO, "Triggering compaction on node %d", nid);
+					log_info("Triggering compaction on node %d", nid);
 				if (!dry_run)
 					compact(nid);
 			}

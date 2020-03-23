@@ -207,6 +207,11 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * start kswapd now.
 		 */
 		if (time_taken >= time_to_catchup) {
+			if (verbose > 2) {
+				log_info("Reclamation recommended due to high memory consumption rate");
+				log_info("Consumption rate=%ld pages/msec, Free pages=%ld", m[0], frag_vec[0].free_pages);
+				log_info("Time to below high watermark= %ld msec", time_taken);
+			}
 			retval |= MEMPREDICT_RECLAIM;
 		}
 	}
@@ -245,6 +250,11 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 				(tspec.tv_nsec / 1000);
 		time_to_catchup = (c[0] - y_cross) / compaction_rate;
 		if (time_taken >= time_to_catchup) {
+			if (verbose > 2) {
+				log_info("Compaction recommended. Order %d pages consumption rate is high", order);
+				log_info("No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
+				log_info("Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
+			}
 			retval |= MEMPREDICT_COMPACT;
 			break;;
 		}

@@ -3,6 +3,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <string.h>
+#include <syslog.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +20,7 @@ extern "C" {
 
 long compaction_rate;
 long reclaim_rate;
+int debug_mode, verbose;
 
 struct lsq_struct {
 	int next;
@@ -36,6 +41,13 @@ struct frag_info {
 };
 
 unsigned long predict(struct frag_info *, struct lsq_struct *, unsigned long);
+
+#define log_err(...)	log_msg(LOG_ERR, __VA_ARGS__)
+#define log_warn(...)	log_msg(LOG_WARNING, __VA_ARGS__)
+#define log_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
+#define log_dbg(...)	log_msg(LOG_DEBUG, __VA_ARGS__)
+
+extern void log_msg(int level, char *fmt, ...);
 
 #ifdef __cplusplus
 }
