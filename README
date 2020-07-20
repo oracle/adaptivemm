@@ -6,7 +6,15 @@ fragmented in near future. If so, it adjusts watermarks to force
 memory reclamation if system is about to run out of memory. If
 memory is precited to become severely fragmented, it triggers
 comapction in the kernel. The goal is to avert memory shortage
-and/or fragmentation by taking proactive measures.
+and/or fragmentation by taking proactive measures. To arrive at this
+prediction, memoptimizer samples free pages of each order on each
+node periodically and fits a straight line using method of least
+squares to these sample points. It also computes current reclamation
+rate by monitoring /proc/vmstat. The equation derived for best fit
+line is used to compute when free memory exhaustion will occur
+taking into account current reclamation rate. If this exhaustion is
+imminent in near future, watermarks are adjusted to initiate
+reclamation.
 
 memoptimizer samples /proc/buddyinfo to monitor the total available
 free memory and the fraction thereof that, whilst notionally free,
@@ -18,12 +26,14 @@ compacted.  The program calculates trends for both the total and
 fragmented free memory and, by extrapolation, determines whether
 exhaustion is imminent.  At the last possible moment, i.e. only once
 it is absolutely necessary, the program initiates compaction with a
-view to recovering the fragmented memory just before it is required
-by subsequent allocations. If number of free pages is expected to be
-exhausted, it looks at the number of inactive pages in cache buffer
-to determine if changing watermarks can result in meaningful number
-of pages reclaimed. It adjusts watermark by changing watermark scale
-factor in /proc/sys/vm/watermark_scale_factor.
+view to recovering the fragmented memory before it is required by
+subsequent allocations. It initiates compaction by writing 1 to
+/sys/devices/system/node/node%d/compact. If number of free pages is
+expected to be exhausted, it looks at the number of inactive pages
+in cache buffer to determine if changing watermarks can result in
+meaningful number of pages reclaimed. It adjusts watermark by
+changing watermark scale factor in
+/proc/sys/vm/watermark_scale_factor.
 
 memoptimizer supports three levels of aggressiveness - 1 = High, 2 =
 Normal (default), 3 = Low. Aggressiveness level dictates how often

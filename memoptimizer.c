@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include "predict.h"
 
-#define VERSION		"0.7"
+#define VERSION		"0.8"
 
 /* How often should data be sampled and trend analyzed*/
 #define LOW_PERIODICITY		30
@@ -28,6 +28,8 @@
 #define ZONEINFO		"/proc/zoneinfo"
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
+
+#define CONFIG_FILE		"/etc/memoptimizer.cfg"
 
 #define MAX_NUMANODES	1024
 
@@ -77,6 +79,9 @@ log_msg(int level, char *fmt, ...)
 	va_end(args);
 }
 
+/*
+ * Initiate memory compactiomn in the kernel on a given node.
+ */
 void
 compact(int node_id)
 {
@@ -129,8 +134,11 @@ scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
 }
 
 /*
- * Parse the next line of input, copying it to an optional output file; 
- * return 1 if successful, 0 on failure or -1 on EOF.
+ * Find the next normal zone in buddyinfo file. When one is found,
+ * update free pages vector and return 1.
+ *
+ * TODO: Should this consider "Movable" zones as well for reclamation
+ *	and compaction?
  */
 int
 get_next_zone(FILE *ifile, int *nid, unsigned long *nr_free)
@@ -249,11 +257,15 @@ no_pages_reclaimed()
 	if (!fp)
 		return 0;
 
-	total_cache_pages = 0;
+	total_cache_pages = reclaimed = 0;
 	while ((fgets(line, len, fp) != NULL)) {
 		sscanf(line, "%s %lu\n", desc, &val );
 		if (strcmp(desc, "pgsteal_kswapd") == 0)
-			reclaimed = val;
+			reclaimed += val;
+		if (strcmp(desc, "pgsteal_kswapd_normal") == 0)
+			reclaimed += val;
+		if (strcmp(desc, "pgsteal_kswapd_movable") == 0)
+			reclaimed += val;
 		if (strcmp(desc, "nr_inactive_file") == 0)
 			total_cache_pages += val;
 		if (strcmp(desc, "nr_inactive_anon") == 0)
@@ -337,32 +349,61 @@ rescale_watermarks(int scale_up)
 		 * below high watermark, check if there are enough
 		 * pages potentially available in buffer cache.
 		 */
-		if ((total_free_pages < hmark) && (total_cache_pages > hmark)) {
-			/*
-			 * There are pages available to harvest. Aggressive
-			 * reclaim is appropriate for this situation. Urgency
-			 * is determined by the percentage of managed pages
-			 * still available. As this number gets lower,
-			 * watermark scale factor needs to go up to make
-			 * kswapd reclaim pages more aggressively. Compute
-			 * scale factor as  multiples of 10.
-			 */
-			scaled_watermark = ((unsigned long)(1000 - frac_free)/10)*10;
-			if (scaled_watermark == 0)
-				return;
+		if (total_free_pages < hmark) {
+			if (total_cache_pages > (hmark - total_free_pages)) {
+				/*
+				 * There are pages available to harvest.
+				 * Aggressive reclaim is appropriate for
+				 * this situation. Urgency is determined by
+				 * the percentage of managed pages still
+				 * available. As this number gets lower,
+				 * watermark scale factor needs to go up
+				 * to make kswapd reclaim pages more
+				 * aggressively. Compute scale factor as
+				 * multiples of 10.
+				 */
+				scaled_watermark = ((unsigned long)(1000 - frac_free)/10)*10;
+				if (scaled_watermark == 0)
+					return;
+			}
+			else {
+				/*
+				 * We are running low on free pages but
+				 * there are not enough pages available to
+				 * reclaim either, so no need to get
+				 * overly aggressive. Be only half as
+				 * aggressive as the case where pages are
+				 * available to reclaim
+				 */
+				scaled_watermark = ((unsigned long)(1000 - frac_free)/20)*10;
+				if (scaled_watermark == 0)
+					return;
+			}
 		}
 		else {
 			/*
-			 * System is not in dire situation at this time, or
-			 * free pages are low but there are not many pages
-			 * to reclaim either. Raise watermark scale factor
-			 * but only by 10%
+			 * System is not in dire situation at this time yet.
+			 * Free pages are expected to approach high
+			 * watermark soon though. If there are lots of
+			 * reclaimable pages available, start semi-aggressive
+			 * reclamation. If not, raise watermark scale factor
+			 * but only by 10% if above 100 otherwise by 20%
 			 */
-			scaled_watermark = (atoi(scaled_wmark) * 11)/10;
+			if (total_cache_pages > (total_free_pages - hmark)) {
+				scaled_watermark = ((unsigned long)(1000 - frac_free)/20)*10;
+				if (scaled_watermark == 0)
+					return;
+			}
+			else {
+				if (atoi(scaled_wmark) > 100)
+					scaled_watermark = (atoi(scaled_wmark) * 11)/10;
+				else
+					scaled_watermark = (atoi(scaled_wmark) * 12)/10;
+			}
 		}
 
 		/*
-		 * Comapre to current watermark scale factor. If it is
+		 * Compare to current watermark scale factor. If it is
 		 * the same as new scale factor, it means current setting
 		 * is not working well enough already. Raise it by 10%
 		 * instead.
@@ -455,6 +496,11 @@ check_permissions(void)
 }
 
 void
+parse_config()
+{
+}
+
+void
 help_msg(char *progname)
 {
 	(void) printf(
@@ -470,10 +516,11 @@ help_msg(char *progname)
 		    "\t-v\tVerbose mode (use multiple to increase verbosity)\n"
 		    "\t-d\tDebug mode (do not run as daemon)\n"
 		    "\t-h\tHelp message\n"
-		    "\t-s\tSimulate a run (dry run)\n"
+		    "\t-s\tSimulate a run (dry run, implies \"-v -v -d\")\n"
 		    "\t-m\tMaximum allowed gap between high and low watermarks in GB\n"
-		    "\t-a\tAggressiveness level (1=high, 2=normal (default), 3=low)\n",
-		    progname, VERSION);
+		    "\t-a\tAggressiveness level (1=high, 2=normal (default), 3=low)\n"
+		    "\nNOTE: config options read from %s can\n      be overridded with command line options\n",
+		    progname, VERSION, CONFIG_FILE);
 }
 
 int
@@ -481,6 +528,7 @@ main(int argc, char **argv)
 {
 	int c, i, aggressiveness = 2;
 	int errflag = 0;
+	int compaction_requested[MAX_NUMANODES];
 	char *ipath;
 	FILE *ifile;
 	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
@@ -535,8 +583,6 @@ main(int argc, char **argv)
 	if (!check_permissions())
 		exit(1);
 
-	update_zone_watermarks();
-
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
 		for (i=0; i<MAX_NUMANODES; i++)
@@ -559,10 +605,12 @@ main(int argc, char **argv)
 
 	/*
 	 * Initialize number of higher order pages seen in last scan
-	 * per node
+	 * and compaction requested per node 
 	 */
-	for (i=0; i<MAX_NUMANODES; i++)
+	for (i=0; i<MAX_NUMANODES; i++) {
 		last_bigpages[i] = 0;
+		compaction_requested[i] = 0;
+	}
 
 	ipath = BUDDYINFO;
 	if ((ifile = fopen(ipath, "r")) == NULL) {
@@ -576,6 +624,12 @@ main(int argc, char **argv)
 		int order, nid, retval;
 		unsigned long result = 0;
 		struct timespec spec, spec_after, spec_before;
+
+		/*
+		 * Start with updated zone watermarks since these can be
+		 * adjusted by user any time
+		 */
+		update_zone_watermarks();
 
 		/*
 		 * Keep track of time to calculate the compaction and
@@ -621,7 +675,7 @@ main(int argc, char **argv)
 			 * prediction.
 			 */
 			result |= predict(free, page_lsq[nid],
-					high_wmark[nid]);
+					high_wmark[nid], nid);
 
 			if (last_bigpages[nid] != 0) {
 				clock_gettime(CLOCK_REALTIME, &spec_after);
@@ -634,19 +688,39 @@ main(int argc, char **argv)
 						last_bigpages[nid]) /
 						time_elapsed;
 					if (compaction_rate && (verbose > 2))
-						log_info("** compaction rate is %ld pages/msec",
-						compaction_rate);
+						log_info("** compaction rate on node %d is %ld pages/msec",
+						nid, compaction_rate);
 				}
 			}
 			last_bigpages[nid] = free[MAX_ORDER-1].free_pages;
 
-			/* Wake the compactor if requested. */
+			/*
+			 * Start compaction if requested. There is a cost
+			 * to compaction in the kernel. Avoid issuing
+			 * compaction request twice in a row.
+			 */
 			if (result & MEMPREDICT_COMPACT) {
-				if (verbose > 1)
-					log_info("Triggering compaction on node %d", nid);
-				if (!dry_run)
-					compact(nid);
+				if (!compaction_requested[nid]) {
+					if (verbose > 1)
+						log_info("Triggering compaction on node %d", nid);
+					if (!dry_run) {
+						compact(nid);
+						compaction_requested[nid] = 1;
+					}
+				}
 			}
+			if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
+				if (result & MEMPREDICT_RECLAIM)
+					rescale_watermarks(1);
+				else
+					rescale_watermarks(0);
+			}
+
+			/*
+			 * Clear compaction requested flag for the next
+			 * sampling interval
+			 */
+			compaction_requested[nid] = 0;
 			total_free_pages += free[0].free_pages;
 		}
 
@@ -660,14 +734,6 @@ main(int argc, char **argv)
 				log_info("reclamation rate is %ld pages/msec", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
-
-		if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
-			if (result & MEMPREDICT_RECLAIM)
-				rescale_watermarks(1);
-			else
-				rescale_watermarks(0);
-			update_zone_watermarks();
-		}
 
 		rewind(ifile);
 		result = 0;

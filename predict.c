@@ -125,7 +125,7 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
  */
 unsigned long
 predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
-	unsigned long high_wmark)
+	unsigned long high_wmark, int nid)
 {
 	int order;
 	long long m[MAX_ORDER];
@@ -191,28 +191,40 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			return 0;
 
 		/*
-		 * Time it will take to go below high_wmark.
+		 * If number of free pages is already below high watermark,
+		 * it is time to kick off reclamation. If not, compute
+		 * time it will take to go below high_wmark.
 		 */
-		time_taken = (frag_vec[0].free_pages - high_wmark) / abs(m[0]);
+		if (frag_vec[0].free_pages <= high_wmark) {
+			retval |= MEMPREDICT_RECLAIM;
+			if (verbose > 1) {
+				log_info("Reclamation recommended due to free pages being below high watermark");
+				log_info("Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
+			}
+		}
+		else {
+			time_taken = (frag_vec[0].free_pages - high_wmark)
+					/ abs(m[0]);
 
-		/*
-		 * Time to reclaim frag_vec[0].free_pages - high_wmark
-		 */
-		time_to_catchup = (frag_vec[0].free_pages -
+			/*
+			 * Time to reclaim frag_vec[0].free_pages - high_wmark
+			 */
+			time_to_catchup = (frag_vec[0].free_pages -
 						high_wmark) / reclaim_rate;
 
-		/*
-		 * If time taken to go below high_wmark is greater than
-		 * the time taken to reclaim the pages then we need to
-		 * start kswapd now.
-		 */
-		if (time_taken >= time_to_catchup) {
-			if (verbose > 2) {
-				log_info("Reclamation recommended due to high memory consumption rate");
-				log_info("Consumption rate=%ld pages/msec, Free pages=%ld", m[0], frag_vec[0].free_pages);
-				log_info("Time to below high watermark= %ld msec", time_taken);
+			/*
+			 * If time taken to go below high_wmark is greater than
+			 * the time taken to reclaim the pages then we need to
+			 * start kswapd now.
+			 */
+			if (time_taken >= time_to_catchup) {
+				if (verbose > 2) {
+					log_info("Reclamation recommended due to high memory consumption rate");
+					log_info("Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
+					log_info("Time to below high watermark= %ld msec, time to catch up=%ld", time_taken, time_to_catchup);
+				}
+				retval |= MEMPREDICT_RECLAIM;
 			}
-			retval |= MEMPREDICT_RECLAIM;
 		}
 	}
 
@@ -220,7 +232,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	 * Check if system is running low on higher order pages and needs
 	 * comapction
 	 */
-	for (order = 1; order < MAX_ORDER; order++) {
+	for (order = MAX_ORDER; order > 0; order--) {
 		/*
 		 * If lines are parallel, then they never intersect.
 		 */
@@ -243,20 +255,32 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * If they intersect anytime soon in the future
 		 * or intersected recently in the past, then it
 		 * is time for compaction and there is no need
-		 * to continue evaluating remaining order pages
+		 * to continue evaluating remaining order pages.
+		 * If intersection was in the past, it can be
+		 * outside of current lookback window which means
+		 * x_cross can be negative.
 		 */
 		clock_gettime(CLOCK_REALTIME, &tspec);
-		time_taken = x_cross - (tspec.tv_sec * 1000) +
-				(tspec.tv_nsec / 1000);
-		time_to_catchup = (c[0] - y_cross) / compaction_rate;
-		if (time_taken >= time_to_catchup) {
-			if (verbose > 2) {
-				log_info("Compaction recommended. Order %d pages consumption rate is high", order);
-				log_info("No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
-				log_info("Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
-			}
+		if ((x_cross < 0) ||
+			(x_cross < (tspec.tv_sec*1000 + tspec.tv_nsec/1000))) {
+			if (verbose > 1)
+				log_info("Compaction recommended on node %d. Out of order %d pages", nid, order);
 			retval |= MEMPREDICT_COMPACT;
-			break;;
+			break;
+		}
+		else {
+			time_taken = x_cross - (tspec.tv_sec * 1000) +
+					(tspec.tv_nsec / 1000);
+			time_to_catchup = (c[0] - y_cross) / compaction_rate;
+			if (time_taken >= time_to_catchup) {
+				if (verbose > 2) {
+					log_info("Compaction recommended on node %d. Order %d pages consumption rate is high", nid, order);
+					log_info("No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
+					log_info("Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
+				}
+				retval |= MEMPREDICT_COMPACT;
+				break;
+			}
 		}
 	}
 
