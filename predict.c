@@ -232,7 +232,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	 * Check if system is running low on higher order pages and needs
 	 * comapction
 	 */
-	for (order = MAX_ORDER; order > 0; order--) {
+	for (order = (MAX_ORDER-1); order > 0; order--) {
 		/*
 		 * If lines are parallel, then they never intersect.
 		 */
