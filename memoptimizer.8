@@ -1,0 +1,93 @@
+.\"  memoptimizer -- Free memory optimization daemon.
+.\"  Copyright (C) 2020	Oracle Corp
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License version 2
+.\"  as published by the Free Software Foundation.
+.\"
+.\"  This program is distributed in the hope that it will be useful,
+.\"  but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"  You should have received a copy of the GNU General Public License along
+.\"  with this program; if not, write to the Free Software Foundation, Inc.,
+.\"  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+.\"
+.\" Manual page for memoptimizer
+.TH memoptimizer 8 "September 2 2020"
+.SH NAME
+memoptimizer \- Memory optimizer daemon
+.SH SYNOPSIS
+.ft 3
+memoptimizer [-dvhs] [-m max_gb] [-a level]
+.SH DESCRIPTION
+memoptimizer
+daemon monitors the state of free memory on the system and optimizes
+availability of free pages as much as possible.
+.LP
+memoptimizer monitors current state of free pages overall and free
+pages of each order. Based upon current rate of free pages
+consumption and memory fragmentation, it predicts if system is
+likely to run out of memory or if memory will become severely
+fragmented in near future. If so, it adjusts watermarks to force
+memory reclamation if system is about to run out of memory. If
+memory is precited to become severely fragmented, it triggers
+comapction in the kernel. The goal is to avert memory shortage
+and/or fragmentation by taking proactive measures. To arrive at this
+prediction, memoptimizer samples free pages of each order on each
+node periodically and fits a straight line using method of least
+squares to these sample points. It also computes current reclamation
+rate by monitoring 
+.Pa /proc/vmstat.
+The equation derived for best fit
+line is used to compute when free memory exhaustion will occur
+taking into account current reclamation rate. If this exhaustion is
+imminent in near future, watermarks are adjusted to initiate
+reclamation.
+
+.SH OPTIONS
+memoptimizer supports following optional command line arguments:
+.TP
+.B \-d
+Debug mode. memoptimizer will not run as daemon in debug mode.
+.TP
+.B \-v
+Enable verbose mode. Use multiple \-v options to increases verbosity level.
+.TP
+.B \-h
+Show command line help
+.TP
+.B \-s
+Simulate a run. Combined with \-v, this can be used to check what actions
+memoptimizer will take if it were running for real. WARNING: This option
+is of limited use since each action taken by memoptimizer for real affects
+free memory state and hence future actions. Actions reported by this option
+are useful only to understand memoptimizer behavior and will not correlate
+necessarily with actions memoptimizer would have taken if it were running
+for real.
+.TP
+.B \-m max_gb
+Maximum amount of gap (in GB) allowed between low and high watermarks as
+memoptimizer adjusts watermarks. This can be used to set a cap on high
+watermark for the system.
+.TP
+.B \-a level
+Aggressiveness level for optimizations. Supported levels are:
+
+.nf
+.in +4
+1	High: Sample memory stats more frequently and
+	make frequent adjustments to system to maintain
+	high number of free pages available
+
+2	Normal: Sample memory stats at a normal level
+	so as to not add siginificant system load and
+	make adjustments at normal level
+
+3	Low: Sample memory stats at longer interval
+	and make slow gradual adjustments to system
+.in -4
+.fi
+.SH AUTHORS
+Khalid Aziz <khalid.aziz@oracle.com>
