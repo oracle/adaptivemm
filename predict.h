@@ -20,7 +20,7 @@ extern "C" {
 
 long compaction_rate;
 long reclaim_rate;
-int debug_mode, verbose;
+extern int debug_mode, verbose;
 
 struct lsq_struct {
 	int next;

@@ -14,9 +14,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"0.8"
+#define VERSION		"1.0"
 
 /* How often should data be sampled and trend analyzed*/
 #define LOW_PERIODICITY		30
@@ -29,7 +30,8 @@
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
 
-#define CONFIG_FILE		"/etc/memoptimizer.cfg"
+#define CONFIG_FILE1		"/etc/sysconfig/memoptimizer.cfg"
+#define CONFIG_FILE2		"/etc/default/memoptimizer.cfg"
 
 #define MAX_NUMANODES	1024
 
@@ -39,6 +41,16 @@ unsigned long total_free_pages, total_cache_pages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
 unsigned long maxwsf = 1000;
+int debug_mode, verbose, maxgap;
+int aggressiveness = 2;
+
+
+void
+bailout(int retval)
+{
+	closelog();
+	exit(retval);
+}
 
 void
 log_msg(int level, char *fmt, ...)
@@ -92,17 +104,17 @@ compact(int node_id)
 	if (snprintf(compactpath, sizeof(compactpath), COMPACT_PATH_FORMAT,
 	    node_id) >= sizeof(compactpath)) {
 		(void) log_err("compactpath is too long");
-		exit(1);
+		bailout(1);
 	}
 
 	if ((fd = open(compactpath, O_WRONLY)) == -1) {
 		log_err("opening compaction path (%s)", strerror(errno));
-		exit(1);
+		bailout(1);
 	}
 
 	if (write(fd, &c, sizeof(c)) != sizeof(c)) {
 		log_err("writing to compaction path (%s)", strerror(errno));
-		exit(1);
+		bailout(1);
 	}
 
 	close(fd);
@@ -495,9 +507,99 @@ check_permissions(void)
 	return 1;
 }
 
-void
+/*
+ * parse_config() - Parse the configuration file CONFIG_FILE1 or CONFIG_FILE2
+ *
+ * Read the configuration files skipping comment and blank lines. Each
+ * valid line will have a parameter followed by '=' and a value.
+ *
+ * Returns:
+ *	1	Parsing successful
+ *	0	Parsing failed
+ */
+#define MAXTOKEN	32
+int
 parse_config()
 {
+	FILE *fstream;
+	char *buf = NULL;
+	size_t n = 0;
+
+	if ((fstream = fopen(CONFIG_FILE1, "r")) == NULL) {
+		if (errno == ENOENT) {
+			/*
+			 * Either of CONFIG_FILE1 and CONFIG_FILE2 may exist
+			 */
+			if ((fstream = fopen(CONFIG_FILE2, "r")) == NULL) {
+				/* Config file may not exist and that is ok */
+				if (errno == ENOENT) {
+					return 1;
+				}
+				else {
+					log_err("Can not open "CONFIG_FILE2" (%s)", strerror(errno));
+					return 0;
+				}
+			}
+		}
+		else {
+			log_err("Can not open "CONFIG_FILE1" (%s)", strerror(errno));
+			return 0;
+		}
+	}
+
+	while (getline(&buf, &n, fstream) > 0) {
+		int i = 0;
+		int j = 0;
+		unsigned long val;
+		char token[MAXTOKEN];
+
+		/* Skip comments */
+		if (buf[0] == '#')
+			goto nextline;
+
+		n = strlen(buf);
+		/* Skip any whitespace at the beginning of a line */
+		while ((i < n) && (isspace(buf[i])))
+			i++;
+		if (i >= n)
+			goto nextline;
+
+		/*
+		 * Now look for '='. A valid line will  have a parameter
+		 * name followed by '=' and a value with whitespace possible
+		 * in between
+		 */
+		while ((buf[i] != '=') && (i < n) && (j < MAXTOKEN))
+			if (!isspace(buf[i]))
+				token[j++] = buf[i++];
+			else
+				i++;
+		if (i >= n)
+			goto nextline;
+		token[j] = 0;
+		val = strtoul(&buf[i+1], NULL, 0);
+
+		if (strncmp(token, "VERBOSE", sizeof("VERBOSE")) == 0)
+			verbose = val;
+		else if (strncmp(token, "MAXGAP", sizeof("MAXGAP")) == 0)
+			maxgap = val;
+		else if (strncmp(token, "AGGRESSIVENESS", sizeof("AGGRESSIVENESS")) == 0)
+			aggressiveness = val;
+		else {
+			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
+			break;
+		}
+
+
+nextline:
+		free(buf);
+		buf = NULL;
+		n = 0;
+	}
+
+	free(buf);
+	fclose(fstream);
+	return 1;
 }
 
 void
@@ -519,22 +621,25 @@ help_msg(char *progname)
 		    "\t-s\tSimulate a run (dry run, implies \"-v -v -d\")\n"
 		    "\t-m\tMaximum allowed gap between high and low watermarks in GB\n"
 		    "\t-a\tAggressiveness level (1=high, 2=normal (default), 3=low)\n"
-		    "\nNOTE: config options read from %s can\n      be overridded with command line options\n",
-		    progname, VERSION, CONFIG_FILE);
+		    "\nNOTE: config options read from configuration file can be overridden\n      with command line options. Configuration file can be\n      %s or %s\n",
+		    progname, VERSION, CONFIG_FILE1, CONFIG_FILE2);
 }
 
 int
 main(int argc, char **argv)
 {
-	int c, i, aggressiveness = 2;
+	int c, i;
 	int errflag = 0;
 	int compaction_requested[MAX_NUMANODES];
 	char *ipath;
 	FILE *ifile;
 	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
-	unsigned long time_elapsed, reclaimed_pages, maxgap;
+	unsigned long time_elapsed, reclaimed_pages;
 
-	maxgap = 0;
+	openlog("memoptimizer", LOG_PID, LOG_DAEMON);
+	if (parse_config() == 0)
+		bailout(1);
+
 	while ((c = getopt(argc, argv, "a:m:hsvd")) != -1) {
 		switch (c) {
 		case 'a':
@@ -560,28 +665,27 @@ main(int argc, char **argv)
 			break;
 		case 'h':
 			help_msg(argv[0]);
-			exit(0);
+			bailout(0);
 		default:
 			errflag++;
 			break;
 		}
 	}
 
-	openlog("memoptimizer", LOG_PID, LOG_DAEMON);
 	/* Become a daemon unless -d was specified */
 	if (!debug_mode)
 		if (daemon(0, 0) != 0) {
 			log_err("Failed to become daemon. %s", strerror(errno));
-			exit(1);
+			bailout(1);
 		}
 
 	if (errflag) {
 		help_msg(argv[0]);
-		exit(1);
+		bailout(1);
 	}
 
 	if (!check_permissions())
-		exit(1);
+		bailout(1);
 
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
@@ -615,7 +719,7 @@ main(int argc, char **argv)
 	ipath = BUDDYINFO;
 	if ((ifile = fopen(ipath, "r")) == NULL) {
 		log_err("fopen(input file)");
-		exit(1);
+		bailout(1);
 	}
 
 	while (1) {
