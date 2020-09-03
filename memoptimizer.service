@@ -1,0 +1,14 @@
+[Unit]
+Description=Memory optimizer daemon
+Documentation=man:memoptimizer(8)
+After=systemd-sysctl.service local-fs.target default.target
+
+[Service]
+Type=forking
+ExecStart=/usr/sbin/memoptimizer
+KillMode=control-group
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

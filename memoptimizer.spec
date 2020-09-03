@@ -1,5 +1,5 @@
 Name: memoptimizer
-Version: 0.8
+Version: 1.0
 Release: 1%{?dist}
 License: GPLv2
 Group: Applications/System
@@ -39,28 +39,38 @@ make
 %install
 
 install -m 700 -D memoptimizer $RPM_BUILD_ROOT/sbin/memoptimizer
+install -d -m755 $RPM_BUILD_ROOT/%{_unitdir}
+install -m644 memoptimizer.service $RPM_BUILD_ROOT/%{_unitdir}/memoptimizer.service
+install -d $RPM_BUILD_ROOT/etc/sysconfig/
+install -m644 memoptimizer.cfg $RPM_BUILD_ROOT/etc/sysconfig/memoptimizer
+install -d -m755 $RPM_BUILD_ROOT/%{_mandir}/man8
+install memoptimizer.8 $RPM_BUILD_ROOT%{_mandir}/man8/
 
 
-%post
+%post server
 # Initial installation
 %systemd_post memoptimizer.service
 
-touch /etc/default/memoptimizer.conf
-
-%postun
+%postun server
 %systemd_postun_with_restart memoptimizer.service
 
-%preun
+%preun server
 # Package removal, not upgrade
 %systemd_preun memoptimizer.service
 
 
 %files
 /sbin/memoptimizer
-%doc LICENSE
+%license LICENSE
 %doc README
+%attr(0644,root,root) %{_mandir}/man8/memoptimizer.8*
+%attr(0640,root,root) %config(noreplace) /etc/sysconfig/memoptimizer
+%attr(0644,root,root) %{_unitdir}/memoptimizer.service
 
 %changelog
+* Wed Sep 02 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0
+- Add support for configuration file and systemd
+
 * Tue Aug 04 2020 Khalid Aziz <khalid.aziz@oracle.com> - 0.8
 - Initial release
 
