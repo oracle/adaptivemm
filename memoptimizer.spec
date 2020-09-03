@@ -38,7 +38,7 @@ make
 
 %install
 
-install -m 700 -D memoptimizer $RPM_BUILD_ROOT/sbin/memoptimizer
+install -m 755 -D memoptimizer $RPM_BUILD_ROOT/%{_sbindir}/memoptimizer
 install -d -m755 $RPM_BUILD_ROOT/%{_unitdir}
 install -m644 memoptimizer.service $RPM_BUILD_ROOT/%{_unitdir}/memoptimizer.service
 install -d $RPM_BUILD_ROOT/etc/sysconfig/
@@ -47,20 +47,20 @@ install -d -m755 $RPM_BUILD_ROOT/%{_mandir}/man8
 install memoptimizer.8 $RPM_BUILD_ROOT%{_mandir}/man8/
 
 
-%post server
+%post
 # Initial installation
 %systemd_post memoptimizer.service
 
-%postun server
+%postun
 %systemd_postun_with_restart memoptimizer.service
 
-%preun server
+%preun
 # Package removal, not upgrade
 %systemd_preun memoptimizer.service
 
 
 %files
-/sbin/memoptimizer
+%attr(0755,root,root) %{_sbindir}/memoptimizer
 %license LICENSE
 %doc README
 %attr(0644,root,root) %{_mandir}/man8/memoptimizer.8*
