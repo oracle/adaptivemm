@@ -1,6 +1,6 @@
-CC=cc
+CC=gcc
 CFLAGS=-I. -Wall -g
-LDFLAGS=-lrt
+LDFLAGS=
 OBJS=predict.o memoptimizer.o
 
 .DEFAULT_GOAL := memoptimizer

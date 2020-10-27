@@ -63,7 +63,8 @@ unsigned long total_free_pages, total_cache_pages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
 unsigned long maxwsf = 1000;
-int debug_mode, verbose, maxgap;
+int debug_mode, verbose;
+unsigned long maxgap;
 int aggressiveness = 2;
 
 
@@ -713,7 +714,7 @@ main(int argc, char **argv)
 		unsigned long total_managed = 0;
 		for (i=0; i<MAX_NUMANODES; i++)
 			total_managed += managed_pages[i];
-		maxwsf = (maxgap * 10000 * 1024 * 1024 * 1024)/(total_managed * getpagesize());
+		maxwsf = (maxgap * 10000UL * 1024UL * 1024UL * 1024UL)/(total_managed * getpagesize());
 	}
 	else {
 		switch (aggressiveness) {
