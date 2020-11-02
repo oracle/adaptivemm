@@ -1,6 +1,6 @@
 Name: memoptimizer
 Version: 1.0
-Release: 1%{?dist}
+Release: 3%{?dist}
 License: GPLv2
 Group: Applications/System
 Summary: Free memory optimizer
@@ -40,7 +40,9 @@ make
 
 install -m 755 -D memoptimizer $RPM_BUILD_ROOT/%{_sbindir}/memoptimizer
 install -d -m755 $RPM_BUILD_ROOT/%{_unitdir}
+install -d -m755 $RPM_BUILD_ROOT/%{_presetdir}
 install -m644 memoptimizer.service $RPM_BUILD_ROOT/%{_unitdir}/memoptimizer.service
+install -m644 50-memoptimizer.preset $RPM_BUILD_ROOT/%{_presetdir}/50-memoptimizer.preset
 install -d $RPM_BUILD_ROOT/etc/sysconfig/
 install -m644 memoptimizer.cfg $RPM_BUILD_ROOT/etc/sysconfig/memoptimizer
 install -d -m755 $RPM_BUILD_ROOT/%{_mandir}/man8
@@ -61,14 +63,22 @@ install memoptimizer.8 $RPM_BUILD_ROOT%{_mandir}/man8/
 
 %files
 %attr(0755,root,root) %{_sbindir}/memoptimizer
-%license LICENSE
-%doc README
+%license LICENSE.txt
+%doc README.md CONTRIBUTING.md SECURITY.md
 %attr(0644,root,root) %{_mandir}/man8/memoptimizer.8*
 %attr(0640,root,root) %config(noreplace) /etc/sysconfig/memoptimizer
 %attr(0644,root,root) %{_unitdir}/memoptimizer.service
+%attr(0644,root,root) %{_presetdir}/50-memoptimizer.preset
 
 %changelog
-* Wed Sep 02 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0
+* Mon Nov 01 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-3
+- Added more documentation and updated spec file to enable memoptimizer
+  daemon using a preset file but not start the daemon
+
+* Mon Oct 26 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-2
+- Enable and start memoptimizer immediately after installation
+
+* Wed Sep 02 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-1
 - Add support for configuration file and systemd
 
 * Tue Aug 04 2020 Khalid Aziz <khalid.aziz@oracle.com> - 0.8
