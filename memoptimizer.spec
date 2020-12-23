@@ -1,6 +1,6 @@
 Name: memoptimizer
 Version: 1.0
-Release: 3%{?dist}
+Release: 4%{?dist}
 License: GPLv2
 Group: Applications/System
 Summary: Free memory optimizer
