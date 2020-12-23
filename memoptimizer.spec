@@ -71,6 +71,9 @@ install memoptimizer.8 $RPM_BUILD_ROOT%{_mandir}/man8/
 %attr(0644,root,root) %{_presetdir}/50-memoptimizer.preset
 
 %changelog
+* Wed Dec 23 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-4
+- Fixed a formatting error in man page
+
 * Mon Nov 01 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-3
 - Added more documentation and updated spec file to enable memoptimizer
   daemon using a preset file but not start the daemon
