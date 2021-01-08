@@ -40,8 +40,7 @@ extern "C" {
 #define MEMPREDICT_COMPACT	0x02
 #define MEMPREDICT_LOWER_WMARKS	0x04
 
-long compaction_rate;
-long reclaim_rate;
+extern long compaction_rate, reclaim_rate;
 extern int debug_mode, verbose;
 
 struct lsq_struct {

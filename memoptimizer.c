@@ -60,6 +60,7 @@
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
 unsigned long total_free_pages, total_cache_pages;
+long compaction_rate, reclaim_rate;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
 unsigned long maxwsf = 1000;
