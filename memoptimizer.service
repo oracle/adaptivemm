@@ -5,6 +5,7 @@ After=systemd-sysctl.service local-fs.target default.target
 
 [Service]
 Type=forking
+EnvironmentFile=-/etc/sysconfig/memoptimizer
 ExecStart=/usr/sbin/memoptimizer
 KillMode=control-group
 Restart=on-failure
