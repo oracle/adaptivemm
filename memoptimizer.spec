@@ -1,6 +1,6 @@
 Name: memoptimizer
-Version: 1.0
-Release: 4%{?dist}
+Version: 1.0.5
+Release: 1%{?dist}
 License: GPLv2
 Summary: Free memory optimizer
 URL: https://github.com/oracle/memoptimizer
@@ -58,6 +58,9 @@ install -D -m 644 memoptimizer.8 %{buildroot}%{_mandir}/man8/memoptimizer.8
 %{_presetdir}/50-memoptimizer.preset
 
 %changelog
+* Tue Jan 12 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.0.5-1
+- Updated spec file to conform to fedora packaging guidelines
+
 * Wed Dec 23 2020 Khalid Aziz <khalid.aziz@oracle.com> - 1.0-4
 - Fixed a formatting error in man page
 
