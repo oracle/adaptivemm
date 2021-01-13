@@ -764,7 +764,13 @@ main(int argc, char **argv)
 		 * reclaim rates
 		 */
 		total_free_pages = 0;
-		clock_gettime(CLOCK_REALTIME, &spec_before);
+		/*
+		 * Get time from CLOCK_MONOTONIC_RAW which is not subject
+		 * to perturbations caused by sysadmin or ntp adjustments.
+		 * This ensures reliable calculations for the least square
+		 * fit algorithm.
+		 */
+		clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
 
 		while ((retval = get_next_zone(ifile, &nid, nr_free)) != -1) {
 			unsigned long total_free;
@@ -781,7 +787,7 @@ main(int argc, char **argv)
 			 * memory.
 			 */
 			total_free = free[0].free_pages = 0;
-			clock_gettime(CLOCK_REALTIME, &spec);
+			clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
 			for (order = 0; order < MAX_ORDER; order++) {
 				unsigned long free_pages;
 
@@ -806,7 +812,7 @@ main(int argc, char **argv)
 					high_wmark[nid], nid);
 
 			if (last_bigpages[nid] != 0) {
-				clock_gettime(CLOCK_REALTIME, &spec_after);
+				clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
 				time_elapsed = get_msecs(&spec_after) -
 						get_msecs(&spec_before);
 				if (free[MAX_ORDER-1].free_pages >
@@ -854,7 +860,7 @@ main(int argc, char **argv)
 
 		reclaimed_pages = no_pages_reclaimed();
 		if (last_reclaimed) {
-			clock_gettime(CLOCK_REALTIME, &spec_after);
+			clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
 			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;

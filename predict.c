@@ -282,7 +282,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * outside of current lookback window which means
 		 * x_cross can be negative.
 		 */
-		clock_gettime(CLOCK_REALTIME, &tspec);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
 		if ((x_cross < 0) ||
 			(x_cross < (tspec.tv_sec*1000 + tspec.tv_nsec/1000))) {
 			if (verbose > 1)
