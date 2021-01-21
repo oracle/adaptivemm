@@ -219,10 +219,8 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 */
 		if (frag_vec[0].free_pages <= high_wmark) {
 			retval |= MEMPREDICT_RECLAIM;
-			if (verbose > 1) {
-				log_info("Reclamation recommended due to free pages being below high watermark");
-				log_info("Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
-			}
+			log_info(2, "Reclamation recommended due to free pages being below high watermark");
+			log_info(2, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
 		}
 		else {
 			time_taken = (frag_vec[0].free_pages - high_wmark)
@@ -240,11 +238,9 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			 * start kswapd now.
 			 */
 			if (time_taken >= time_to_catchup) {
-				if (verbose > 2) {
-					log_info("Reclamation recommended due to high memory consumption rate");
-					log_info("Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
-					log_info("Time to below high watermark= %ld msec, time to catch up=%ld", time_taken, time_to_catchup);
-				}
+				log_info(3, "Reclamation recommended due to high memory consumption rate");
+				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
+				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld", time_taken, time_to_catchup);
 				retval |= MEMPREDICT_RECLAIM;
 			}
 		}
@@ -285,8 +281,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
 		if ((x_cross < 0) ||
 			(x_cross < (tspec.tv_sec*1000 + tspec.tv_nsec/1000))) {
-			if (verbose > 1)
-				log_info("Compaction recommended on node %d. Out of order %d pages", nid, order);
+			log_info(2, "Compaction recommended on node %d. Out of order %d pages", nid, order);
 			retval |= MEMPREDICT_COMPACT;
 			break;
 		}
@@ -295,11 +290,9 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 					(tspec.tv_nsec / 1000);
 			time_to_catchup = (c[0] - y_cross) / compaction_rate;
 			if (time_taken >= time_to_catchup) {
-				if (verbose > 2) {
-					log_info("Compaction recommended on node %d. Order %d pages consumption rate is high", nid, order);
-					log_info("No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
-					log_info("Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
-				}
+				log_info(3, "Compaction recommended on node %d. Order %d pages consumption rate is high", nid, order);
+				log_info(3, "No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
+				log_info(3, "Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
 				retval |= MEMPREDICT_COMPACT;
 				break;
 			}

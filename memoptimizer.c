@@ -39,7 +39,7 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.0"
+#define VERSION		"1.1.0"
 
 /* How often should data be sampled and trend analyzed*/
 #define LOW_PERIODICITY		30
@@ -464,13 +464,11 @@ rescale_watermarks(int scale_up)
 	if (atoi(scaled_wmark) == scaled_watermark)
 		return;
 
-	if (verbose)
-		log_info("Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
+	log_info(1, "Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
 	if (dry_run)
 		goto out;
 
-	if (verbose)
-		log_info("New watermark scale factor = %ld", scaled_watermark);
+	log_info(1, "New watermark scale factor = %ld", scaled_watermark);
 	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
 		log_err("Failed to open "RESCALE_WMARK" (%s)", strerror(errno));
@@ -746,6 +744,8 @@ main(int argc, char **argv)
 		bailout(1);
 	}
 
+	log_info(3, "Memoptimizer "VERSION" started");
+
 	while (1) {
 		unsigned long nr_free[MAX_ORDER];
 		struct frag_info free[MAX_ORDER];
@@ -821,8 +821,8 @@ main(int argc, char **argv)
 						(free[MAX_ORDER-1].free_pages -
 						last_bigpages[nid]) /
 						time_elapsed;
-					if (compaction_rate && (verbose > 2))
-						log_info("** compaction rate on node %d is %ld pages/msec",
+					if (compaction_rate)
+						log_info(3, "** compaction rate on node %d is %ld pages/msec",
 						nid, compaction_rate);
 				}
 			}
@@ -835,8 +835,7 @@ main(int argc, char **argv)
 			 */
 			if (result & MEMPREDICT_COMPACT) {
 				if (!compaction_requested[nid]) {
-					if (verbose > 1)
-						log_info("Triggering compaction on node %d", nid);
+					log_info(2, "Triggering compaction on node %d", nid);
 					if (!dry_run) {
 						compact(nid);
 						compaction_requested[nid] = 1;
@@ -864,8 +863,8 @@ main(int argc, char **argv)
 			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
-			if (reclaim_rate && (verbose > 2))
-				log_info("reclamation rate is %ld pages/msec", reclaim_rate);
+			if (reclaim_rate)
+				log_info(3, "reclamation rate is %ld pages/msec", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
 

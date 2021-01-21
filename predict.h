@@ -66,8 +66,13 @@ unsigned long predict(struct frag_info *, struct lsq_struct *,
 
 #define log_err(...)	log_msg(LOG_ERR, __VA_ARGS__)
 #define log_warn(...)	log_msg(LOG_WARNING, __VA_ARGS__)
-#define log_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
-#define log_dbg(...)	log_msg(LOG_DEBUG, __VA_ARGS__)
+#define log_dbg(...)	if (debug_mode)	\
+				log_msg(LOG_DEBUG, __VA_ARGS__)
+#define log_info(verb_level, ...)	if (verbose >= verb_level) \
+						log_msg(LOG_INFO, __VA_ARGS__)
+
+/* Use pr_info to log info irrespective of verbosity level */
+#define pr_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
 
 extern void log_msg(int level, char *fmt, ...);
 
