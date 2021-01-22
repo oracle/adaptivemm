@@ -39,7 +39,7 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.1.0"
+#define VERSION		"1.2.0"
 
 /* How often should data be sampled and trend analyzed*/
 #define LOW_PERIODICITY		30
@@ -52,8 +52,8 @@
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
 
-#define CONFIG_FILE1		"/etc/sysconfig/memoptimizer.cfg"
-#define CONFIG_FILE2		"/etc/default/memoptimizer.cfg"
+#define CONFIG_FILE1		"/etc/sysconfig/memoptimizer"
+#define CONFIG_FILE2		"/etc/default/memoptimizer"
 
 #define MAX_NUMANODES	1024
 
@@ -744,7 +744,7 @@ main(int argc, char **argv)
 		bailout(1);
 	}
 
-	log_info(3, "Memoptimizer "VERSION" started");
+	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d)", verbose, aggressiveness);
 
 	while (1) {
 		unsigned long nr_free[MAX_ORDER];

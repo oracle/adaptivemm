@@ -89,5 +89,34 @@ Aggressiveness level for optimizations. Supported levels are:
 	and make slow gradual adjustments to system
 .in -4
 .fi
+
+.SH CONFIGURATION
+.PP
+Follwoing configuration options are available in the configuration file
+(/etc/sysconfig/memoptimizer or /etc/default/memoptimizer):
+.PP
+\fBVERBOSE\fR (number)
+.RS 4
+Verbosity level (0-5)
+.RE
+.PP
+\fBMAXGAP\fR (number)
+.RS 4
+Maximum amount of gap (in GB) allowed between low and high watermarks
+.RE
+.PP
+\fBAGGRESSIVENESS\fR (number)
+.RS 4
+Aggressiveness level (1-3) for optimizations
+.RE
+
+.SH FILES
+.PD 0
+.B /etc/sysconfig/memoptimizer
+.br
+.B /etc/default/memoptimizer
+.br
+.PD
+
 .SH AUTHORS
 Khalid Aziz <khalid.aziz@oracle.com>
