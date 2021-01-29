@@ -155,7 +155,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	int is_ready = 1;
 	unsigned long retval = 0;
 	unsigned long time_taken, time_to_catchup;
-	long long x_cross, y_cross;
+	long long x_cross, y_cross, current_time;
 	struct timespec tspec;
 
 
@@ -248,17 +248,29 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 
 	/*
 	 * Check if system is running low on higher order pages and needs
-	 * comapction
+	 * compaction.
 	 */
-	for (order = (MAX_ORDER-1); order > 0; order--) {
+	for (order = max_compaction_order; order > 0; order--) {
 		/*
 		 * If lines are parallel, then they never intersect.
 		 */
 		if (m[0] == m[order])
 			continue;
 
+		/*
+		 * If number of high order pages is increasing, no
+		 * need to take any action
+		 */
+		if (m[order] < 0)
+			continue;
+
+		/*
+		 * If system is unable to comapct pages, no point
+		 * in forcing compaction
+		 */
 		if (compaction_rate == 0)
 			return 0;
+
 		/*
 		 * Find the point of intersection of the two lines.
 		 * The point of intersection represents 100%
@@ -277,21 +289,40 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * If intersection was in the past, it can be
 		 * outside of current lookback window which means
 		 * x_cross can be negative.
+		 *
+		 * To check if intersection is in near future,
+		 * get the current time relative to x=0 on our
+		 * graph.
 		 */
 		clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
+		current_time = tspec.tv_sec*1000 + tspec.tv_nsec/1000 - lsq->x[lsq->next];;
+		if (current_time < 0)
+			current_time = 0;
 		if ((x_cross < 0) ||
-			(x_cross < (tspec.tv_sec*1000 + tspec.tv_nsec/1000))) {
-			log_info(2, "Compaction recommended on node %d. Out of order %d pages", nid, order);
-			retval |= MEMPREDICT_COMPACT;
-			break;
+			(x_cross < current_time)) {
+			unsigned long higher_order_pages =
+				frag_vec[MAX_ORDER - 1].free_pages -
+				frag_vec[order].free_pages;
+
+			/*
+			 * Check if there are enough higher order pages
+			 * that could be broken into pages of current order
+			 * given current rate of consumption and time
+			 * remaining. If not, comapct now.
+			 */
+			if (higher_order_pages < (m[order] * x_cross)) {
+				log_info(2, "Compaction recommended on node %d. Running out of order %d pages", nid, order);
+				retval |= MEMPREDICT_COMPACT;
+				break;
+			}
 		}
 		else {
-			time_taken = x_cross - (tspec.tv_sec * 1000) +
-					(tspec.tv_nsec / 1000);
+			time_taken = x_cross - current_time;
 			time_to_catchup = (c[0] - y_cross) / compaction_rate;
 			if (time_taken >= time_to_catchup) {
 				log_info(3, "Compaction recommended on node %d. Order %d pages consumption rate is high", nid, order);
-				log_info(3, "No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, frag_vec[order].free_pages, m[order]);
+				if (order < (MAX_ORDER -1))
+					log_info(3, "No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, (frag_vec[order+1].free_pages - frag_vec[order].free_pages), m[order]);
 				log_info(3, "Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
 				retval |= MEMPREDICT_COMPACT;
 				break;
