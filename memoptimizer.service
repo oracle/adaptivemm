@@ -1,7 +1,7 @@
 [Unit]
 Description=Memory optimizer daemon
 Documentation=man:memoptimizer(8)
-After=systemd-sysctl.service local-fs.target default.target
+After=systemd-sysctl.service local-fs.target syslog.target
 
 [Service]
 Type=forking

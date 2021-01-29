@@ -39,12 +39,12 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.2.0"
+#define VERSION		"1.3.0"
 
 /* How often should data be sampled and trend analyzed*/
-#define LOW_PERIODICITY		30
-#define NORM_PERIODICITY	15
-#define HIGH_PERIODICITY	3
+#define LOW_PERIODICITY		60
+#define NORM_PERIODICITY	30
+#define HIGH_PERIODICITY	15
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
@@ -63,10 +63,27 @@ unsigned long total_free_pages, total_cache_pages;
 long compaction_rate, reclaim_rate;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
-unsigned long maxwsf = 1000;
 int debug_mode, verbose;
 unsigned long maxgap;
 int aggressiveness = 2;
+
+/*
+ * Highest value to set watermark_scale_factor to. This value is tied
+ * to aggressiveness level. Higher  level of aggressiveness will result
+ * in higher value for this. Set the default to match default
+ * aggressiveness value
+ */
+unsigned long maxwsf = 700;
+
+/*
+ * Highest order pages to lok at for fragmentation. Ignore order 10
+ * pages, they require moving around lots of pages to create and thus
+ * are expensive. This value is tied into aggressiveness level. Higher
+ * level of aggressiveness will result in going up on the order for
+ * fragmentation check. Set the default to match default aggressiveness
+ * value
+ */
+int max_compaction_order = MAX_ORDER - 4;
 
 
 void
@@ -131,7 +148,7 @@ compact(int node_id)
 		bailout(1);
 	}
 
-	if ((fd = open(compactpath, O_WRONLY)) == -1) {
+	if ((fd = open(compactpath, O_WRONLY|O_NONBLOCK)) == -1) {
 		log_err("opening compaction path (%s)", strerror(errno));
 		bailout(1);
 	}
@@ -709,24 +726,34 @@ main(int argc, char **argv)
 	if (!check_permissions())
 		bailout(1);
 
+	/*
+	 * Set up values for parameters based upon aggressiveness
+	 * level desired
+	 */
+	switch (aggressiveness) {
+		case 1:
+			maxwsf = 1000;
+			max_compaction_order = MAX_ORDER - 2;
+			break;
+		case 2:
+			maxwsf = 700;
+			max_compaction_order = MAX_ORDER - 4;
+			break;
+		case 3:
+			maxwsf = 400;
+			max_compaction_order = MAX_ORDER - 6;
+			break;
+	}
+
+	/*
+	 * If user specifies a maximum gap value for gap between low
+	 * and high watermarks, recompute maxwsf to account for that.
+         */
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
 		for (i=0; i<MAX_NUMANODES; i++)
 			total_managed += managed_pages[i];
 		maxwsf = (maxgap * 10000UL * 1024UL * 1024UL * 1024UL)/(total_managed * getpagesize());
-	}
-	else {
-		switch (aggressiveness) {
-			case 1:
-				maxwsf = 1000;
-				break;
-			case 2:
-				maxwsf = 700;
-				break;
-			case 3:
-				maxwsf = 400;
-				break;
-		}
 	}
 
 	/*
@@ -806,7 +833,9 @@ main(int argc, char **argv)
 			/*
 			 * Offer the predictor the fragmented free memory
 			 * vector but do nothing else unless it issues a
-			 * prediction.
+			 * prediction. Accumulate recommendation from
+			 * prediction algorithm across all nodes so we
+			 * adjust watermarks only once per wake up.
 			 */
 			result |= predict(free, page_lsq[nid],
 					high_wmark[nid], nid);
@@ -839,22 +868,32 @@ main(int argc, char **argv)
 					if (!dry_run) {
 						compact(nid);
 						compaction_requested[nid] = 1;
+						result &= ~MEMPREDICT_COMPACT;
 					}
 				}
 			}
-			if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
-				if (result & MEMPREDICT_RECLAIM)
-					rescale_watermarks(1);
-				else
-					rescale_watermarks(0);
-			}
-
 			/*
 			 * Clear compaction requested flag for the next
 			 * sampling interval
 			 */
 			compaction_requested[nid] = 0;
 			total_free_pages += free[0].free_pages;
+		}
+
+		/*
+		 * Adjust watermarks if needed. Both MEMPREDICT_RECLAIM
+		 * and MEMPREDICT_LOWER_WMARKS can be set even though it
+		 * seems contradictory. That is because result accumulates
+		 * all prediction results across all nodes. One node may
+		 * have enough free pages or has increasing number of
+		 * free pages while another node may be running low. In
+		 * such cases, MEMPREDICT_RECLAIM takes precedence
+		 */
+		if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
+			if (result & MEMPREDICT_RECLAIM)
+				rescale_watermarks(1);
+			else
+				rescale_watermarks(0);
 		}
 
 		reclaimed_pages = no_pages_reclaimed();

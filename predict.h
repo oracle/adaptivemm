@@ -41,7 +41,7 @@ extern "C" {
 #define MEMPREDICT_LOWER_WMARKS	0x04
 
 extern long compaction_rate, reclaim_rate;
-extern int debug_mode, verbose;
+extern int debug_mode, verbose, max_compaction_order;
 
 struct lsq_struct {
 	int next;
