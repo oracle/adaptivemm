@@ -34,14 +34,21 @@
 extern "C" {
 #endif
 
-#define	MAX_ORDER		11
+/* Size of sliding window for computing trend line */
 #define	LSQ_LOOKBACK		8
+
+/* How often should data be sampled and trend analyzed*/
+#define LOW_PERIODICITY		60
+#define NORM_PERIODICITY	30
+#define HIGH_PERIODICITY	15
+
+#define	MAX_ORDER		11
 #define MEMPREDICT_RECLAIM	0x01
 #define MEMPREDICT_COMPACT	0x02
 #define MEMPREDICT_LOWER_WMARKS	0x04
 
 extern long compaction_rate, reclaim_rate;
-extern int debug_mode, verbose, max_compaction_order;
+extern int debug_mode, verbose, max_compaction_order, periodicity;
 
 struct lsq_struct {
 	int next;
