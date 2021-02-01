@@ -728,9 +728,9 @@ main(int argc, char **argv)
 	 */
 	switch (aggressiveness) {
 		case 1:
-			maxwsf = 1000;
-			max_compaction_order = MAX_ORDER - 2;
-			periodicity = HIGH_PERIODICITY;
+			maxwsf = 400;
+			max_compaction_order = MAX_ORDER - 6;
+			periodicity = LOW_PERIODICITY;
 			break;
 		case 2:
 			maxwsf = 700;
@@ -738,9 +738,9 @@ main(int argc, char **argv)
 			periodicity = NORM_PERIODICITY;
 			break;
 		case 3:
-			maxwsf = 400;
-			max_compaction_order = MAX_ORDER - 6;
-			periodicity = LOW_PERIODICITY;
+			maxwsf = 1000;
+			max_compaction_order = MAX_ORDER - 2;
+			periodicity = HIGH_PERIODICITY;
 			break;
 	}
 

@@ -77,16 +77,16 @@ Aggressiveness level for optimizations. Supported levels are:
 
 .nf
 .in +4
-1	High: Sample memory stats more frequently and
-	make frequent adjustments to system to maintain
-	high number of free pages available
+1	Low: Sample memory stats at longer interval
+	and make slow gradual adjustments to system
 
 2	Normal: Sample memory stats at a normal level
 	so as to not add siginificant system load and
 	make adjustments at normal level
 
-3	Low: Sample memory stats at longer interval
-	and make slow gradual adjustments to system
+3	High: Sample memory stats more frequently and
+	make frequent adjustments to system to maintain
+	high number of free pages available
 .in -4
 .fi
 
@@ -97,7 +97,7 @@ Following configuration options are available in the configuration file
 .PP
 \fBVERBOSE\fR (number)
 .RS 4
-Verbosity level (0-5)
+Verbosity level (0-5), higher level results in more information being logged
 .RE
 .PP
 \fBMAXGAP\fR (number)
@@ -107,7 +107,8 @@ Maximum amount of gap (in GB) allowed between low and high watermarks
 .PP
 \fBAGGRESSIVENESS\fR (number)
 .RS 4
-Aggressiveness level (1-3) for optimizations
+Aggressiveness level (1-3) for optimizations, higher numbers mean more
+aggressive optimization
 .RE
 
 .SH FILES
