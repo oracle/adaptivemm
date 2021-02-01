@@ -155,7 +155,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	int is_ready = 1;
 	unsigned long retval = 0;
 	unsigned long time_taken, time_to_catchup;
-	long long x_cross, y_cross, current_time;
+	long long x_cross, current_time;
 	struct timespec tspec;
 
 
@@ -278,8 +278,10 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 */
 		x_cross = ((c[0] - c[order]) * 100) /
 					(m[order] - m[0]);
+#if 0
 		y_cross = ((m[order] * c[0]) - (m[0] * c[order])) /
 				(m[order] - m[0]);
+#endif
 
 		/*
 		 * If they intersect anytime soon in the future
@@ -317,13 +319,32 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			}
 		}
 		else {
+			/*
+			 * How long before we run out of current order
+			 * pages.  We will constrain the size of window
+			 * we lok forward in since large window means
+			 * the consumption trend can change in that time.
+			 * It will be prudent to defer the decision to
+			 * initiate compaction until the exhaustion period
+			 * falls within this window.
+			 */
+			unsigned long largest_window;
+
+			largest_window = 5 * LSQ_LOOKBACK * periodicity * 1000;
 			time_taken = x_cross - current_time;
-			time_to_catchup = (c[0] - y_cross) / compaction_rate;
+			if (time_taken > largest_window)
+				continue;
+
+			/*
+			 * How long will it take to compact as many pages as
+			 * available current order pages
+			 */
+			time_to_catchup = (frag_vec[order+1].free_pages - frag_vec[order].free_pages) / compaction_rate;
 			if (time_taken >= time_to_catchup) {
 				log_info(3, "Compaction recommended on node %d. Order %d pages consumption rate is high", nid, order);
 				if (order < (MAX_ORDER -1))
-					log_info(3, "No. of free order %d pages = %ld, consumption rate=%ld pages/msec", order, (frag_vec[order+1].free_pages - frag_vec[order].free_pages), m[order]);
-				log_info(3, "Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
+					log_info(3, "No. of free order %d pages = %ld base pages, consumption rate=%ld pages/msec", order, (frag_vec[order+1].free_pages - frag_vec[order].free_pages), m[order]);
+				 log_info(3, "Current compaction rate=%ld pages/msec, Exhaustion in %ld msec", compaction_rate, time_taken);
 				retval |= MEMPREDICT_COMPACT;
 				break;
 			}

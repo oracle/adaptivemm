@@ -41,11 +41,6 @@
 
 #define VERSION		"1.3.0"
 
-/* How often should data be sampled and trend analyzed*/
-#define LOW_PERIODICITY		60
-#define NORM_PERIODICITY	30
-#define HIGH_PERIODICITY	15
-
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
 #define ZONEINFO		"/proc/zoneinfo"
@@ -66,6 +61,7 @@ int dry_run;
 int debug_mode, verbose;
 unsigned long maxgap;
 int aggressiveness = 2;
+int periodicity;
 
 /*
  * Highest value to set watermark_scale_factor to. This value is tied
@@ -734,14 +730,17 @@ main(int argc, char **argv)
 		case 1:
 			maxwsf = 1000;
 			max_compaction_order = MAX_ORDER - 2;
+			periodicity = HIGH_PERIODICITY;
 			break;
 		case 2:
 			maxwsf = 700;
 			max_compaction_order = MAX_ORDER - 4;
+			periodicity = NORM_PERIODICITY;
 			break;
 		case 3:
 			maxwsf = 400;
 			max_compaction_order = MAX_ORDER - 6;
+			periodicity = LOW_PERIODICITY;
 			break;
 	}
 
@@ -909,17 +908,7 @@ main(int argc, char **argv)
 
 		rewind(ifile);
 		result = 0;
-		switch (aggressiveness) {
-			case 1:
-				sleep(HIGH_PERIODICITY);
-				break;
-			case 2:
-				sleep(NORM_PERIODICITY);
-				break;
-			case 3:
-				sleep(LOW_PERIODICITY);
-				break;
-		}
+		sleep(periodicity);
 	}
 
 	closelog();
