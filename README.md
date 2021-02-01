@@ -60,8 +60,8 @@ memoptimizer daemon can be run standalone or can be started automatically by sys
 
 ### Usage
 
-memoptimizer supports three levels of aggressiveness - 1 = High, 2 =
-Normal (default), 3 = Low. Aggressiveness level dictates how often
+memoptimizer supports three levels of aggressiveness - 1 = Low, 2 =
+Normal (default), 3 = High. Aggressiveness level dictates how often
 memoptimizer will sample system state and how aggressively it will
 tune watermark scale factor.
 
