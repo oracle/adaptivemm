@@ -52,6 +52,9 @@
 
 #define MAX_NUMANODES	1024
 
+#define MAX_VERBOSE 5
+#define MAX_AGGRESSIVE 3
+
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
 unsigned long total_free_pages, total_cache_pages;
@@ -614,12 +617,20 @@ parse_config()
 		token[j] = 0;
 		val = strtoul(&buf[i+1], NULL, 0);
 
-		if (strncmp(token, "VERBOSE", sizeof("VERBOSE")) == 0)
-			verbose = val;
+		if (strncmp(token, "VERBOSE", sizeof("VERBOSE")) == 0) {
+			if(val <= MAX_VERBOSE) 
+				verbose = val;
+			else
+				log_err("Verbosity value is greater than %d. Proceeding with defaults", MAX_VERBOSE);
+		}
 		else if (strncmp(token, "MAXGAP", sizeof("MAXGAP")) == 0)
 			maxgap = val;
-		else if (strncmp(token, "AGGRESSIVENESS", sizeof("AGGRESSIVENESS")) == 0)
-			aggressiveness = val;
+		else if (strncmp(token, "AGGRESSIVENESS", sizeof("AGGRESSIVENESS")) == 0) {
+			if(val <= MAX_AGGRESSIVE)
+				aggressiveness = val;
+			else
+				log_err("Aggressiveness value is greater than %d. Proceeding with defaults", MAX_AGGRESSIVE);
+		}
 		else {
 			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
 			break;
