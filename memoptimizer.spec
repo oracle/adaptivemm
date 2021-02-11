@@ -1,5 +1,5 @@
 Name: memoptimizer
-Version: 1.2.0
+Version: 1.3.0
 Release: 1%{?dist}
 License: GPLv2
 Summary: Free memory optimizer
@@ -58,6 +58,11 @@ install -D -m 644 memoptimizer.8 %{buildroot}%{_mandir}/man8/memoptimizer.8
 %{_presetdir}/50-memoptimizer.preset
 
 %changelog
+* Thu Feb 11 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.3.0-1
+- New upstream release. Various enhancements to reduce system
+  resource usage by the daemon. Fix to correct the sense of
+  aggressiveness level and documentation update
+
 * Fri Jan 22 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.2.0-1
 - New upstream release. Fixes bug with not reading configuration file
 
