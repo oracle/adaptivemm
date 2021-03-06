@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <ctype.h>
 #include "predict.h"
 
@@ -46,6 +47,7 @@
 #define ZONEINFO		"/proc/zoneinfo"
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
+#define HUGEPAGESINFO		"/sys/kernel/mm/hugepages"
 
 #define CONFIG_FILE1		"/etc/sysconfig/memoptimizer"
 #define CONFIG_FILE2		"/etc/default/memoptimizer"
@@ -57,7 +59,7 @@
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
-unsigned long total_free_pages, total_cache_pages;
+unsigned long total_free_pages, total_cache_pages, total_hugepages, base_psize;
 long compaction_rate, reclaim_rate;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
@@ -226,6 +228,47 @@ get_next_zone(FILE *ifile, int *nid, unsigned long *nr_free)
 }
 
 /*
+ * Compute the number of base pages tied up in hugepages
+ */
+int
+update_hugepages()
+{
+	DIR *dp;
+	struct dirent *ep;
+	unsigned long newhpages = 0;
+
+	dp = opendir(HUGEPAGESINFO);
+	if (dp != NULL) {
+		while ((ep = readdir(dp)) != NULL) {
+			if (ep->d_type == DT_DIR) {
+				FILE *fp;
+				long pages, psize;
+				char tmpstr[312];
+
+				/* Check if it is one of the hugepages dir */
+				if (strstr(ep->d_name, "hugepages-") == NULL)
+					continue;
+				sprintf(tmpstr, "%s/%s/nr_hugepages", HUGEPAGESINFO, ep->d_name);
+				if ((fp = fopen(tmpstr, "r")) != NULL) {
+					if (fgets(tmpstr, 256, fp) != NULL) {
+						sscanf(tmpstr, "%ld", &pages);
+						sscanf(ep->d_name, "hugepages-%ldkB", &psize);
+						newhpages += pages * psize /base_psize;
+					}
+				}
+			}
+		}
+		if (newhpages)
+			total_hugepages = newhpages;
+		closedir(dp);
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
  * Parse watermarks and zone_managed_pages values from /proc/zoneinfo
  */
 int
@@ -249,35 +292,33 @@ update_zone_watermarks()
 			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
 
 			if (strcmp("Normal", zone_name) == 0) {
-				int i = 0;
 				unsigned long min, low, high, managed;
 
+				/*
+				 * We found the normal zone. Now look for
+				 * line "pages free"
+				 */
 				if (fgets(line, len, fp) == NULL)
 					goto out;
 
-				while (i < 7) {
-					unsigned long wmark;
+				while (1) {
+					unsigned long val;
 					char name[20];
 
 					if (fgets(line, len, fp) == NULL)
 						goto out;
 
-					sscanf(line, "%s %lu\n", name, &wmark);
-					switch (i) {
-						case 0:
-							min = wmark;
-							break;
-						case 1:
-							low = wmark;
-							break;
-						case 2:
-							high = wmark;
-							break;
-						case 6:
-							managed = wmark;
-							break;
-					}
-					i++;
+					sscanf(line, "%s %lu\n", name, &val);
+					if (strcmp(name, "min") == 0)
+						min = val;
+					if (strcmp(name, "low") == 0)
+						low = val;
+					if (strcmp(name, "high") == 0)
+						high = val;
+					if (strcmp(name, "managed") == 0)
+						managed = val;
+					if (strcmp(name, "pagesets") == 0)
+						break;
 				}
 
 				min_wmark[nid] = min;
@@ -758,7 +799,9 @@ main(int argc, char **argv)
 	/*
 	 * If user specifies a maximum gap value for gap between low
 	 * and high watermarks, recompute maxwsf to account for that.
+	 * Update zone page information first.
          */
+	update_zone_watermarks();
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
 		for (i=0; i<MAX_NUMANODES; i++)
@@ -775,13 +818,18 @@ main(int argc, char **argv)
 		compaction_requested[i] = 0;
 	}
 
+	/*
+	 * get base page size for the system and convert it to kB
+	 */
+	base_psize = getpagesize()/1024;
+
 	ipath = BUDDYINFO;
 	if ((ifile = fopen(ipath, "r")) == NULL) {
 		log_err("fopen(input file)");
 		bailout(1);
 	}
 
-	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d)", verbose, aggressiveness);
+	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
 
 	while (1) {
 		unsigned long nr_free[MAX_ORDER];
@@ -791,10 +839,11 @@ main(int argc, char **argv)
 		struct timespec spec, spec_after, spec_before;
 
 		/*
-		 * Start with updated zone watermarks since these can be
-		 * adjusted by user any time
+		 * Start with updated zone watermarks and number of hugepages
+		 * allocated since these can be adjusted by user any time
 		 */
 		update_zone_watermarks();
+		update_hugepages();
 
 		/*
 		 * Keep track of time to calculate the compaction and

@@ -240,7 +240,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			if (time_taken >= time_to_catchup) {
 				log_info(3, "Reclamation recommended due to high memory consumption rate");
 				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
-				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld", time_taken, time_to_catchup);
+				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld msec", time_taken, time_to_catchup);
 				retval |= MEMPREDICT_RECLAIM;
 			}
 		}
