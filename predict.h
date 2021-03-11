@@ -69,7 +69,7 @@ struct frag_info {
 };
 
 unsigned long predict(struct frag_info *, struct lsq_struct *,
-			unsigned long, int);
+			unsigned long, unsigned long, int);
 
 #define log_err(...)	log_msg(LOG_ERR, __VA_ARGS__)
 #define log_warn(...)	log_msg(LOG_WARNING, __VA_ARGS__)

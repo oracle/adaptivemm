@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.3.0"
+#define VERSION		"1.4.0"
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
@@ -74,7 +74,8 @@ int periodicity;
  * in higher value for this. Set the default to match default
  * aggressiveness value
  */
-unsigned long maxwsf = 700;
+unsigned int maxwsf = 700;
+unsigned int mywsf;
 
 /*
  * Highest order pages to lok at for fragmentation. Ignore order 10
@@ -335,6 +336,46 @@ out:
 }
 
 /*
+ * When kernel computes the gap between low and high watermarks
+ * using watermark scale factor, it computes a percentage of
+ * total memory on the system. This works when most of the
+ * moemory is reclaimable and subject to watermarks. On systems
+ * that allocate very large percentage of memory to hugepages,
+ * this results in kernel computing watermarks that are just
+ * too high for the remaining memory that is truly subject to
+ * reclamation. Rescale max wsf down so kernel will end up
+ * computing watermarks that are mor ein line with real
+ * available memory.
+ */
+void
+rescale_maxwsf()
+{
+	unsigned long reclaimable_pages, total_managed = 0;
+	unsigned long gap, new_wsf;
+	int i;
+
+	for (i=0; i<MAX_NUMANODES; i++)
+		total_managed += managed_pages[i];
+
+	/*
+	 * Compute what the gap would be if maxwsf is applied to
+	 * just reclaimable memory
+	 */
+	reclaimable_pages = total_managed - total_hugepages;
+	gap = (reclaimable_pages * maxwsf)/10000;
+
+	/*
+	 * Now compute WSF needed for same gap if all memory was taken
+	 * into account
+	 */
+	new_wsf = (gap * 10000)/total_managed;
+	if ((new_wsf > 9) && (new_wsf < 1000))
+		mywsf = new_wsf;
+	else
+		log_warn("Failed to compute reasonable WSF, %ld, total pages %ld, reclaimable pages %ld", new_wsf, total_managed, reclaimable_pages);
+}
+
+/*
  * Get the number of pages stolen by kswapd from /proc/vmstat.
  */
 unsigned long
@@ -385,6 +426,15 @@ rescale_watermarks(int scale_up)
 
 	for (i=0; i<MAX_NUMANODES; i++)
 		total_managed += managed_pages[i];
+	/*
+	 * Hugepages should not be taken into account for watermark
+	 * calculations since they are not reclaimable
+	 */
+	total_managed -= total_hugepages;
+
+	/*
+	 * Fraction of managed pages currently free
+	 */
 	frac_free = (total_free_pages*1000)/total_managed;
 
 	/*
@@ -515,8 +565,8 @@ rescale_watermarks(int scale_up)
 		scaled_watermark = 1000;
 	if (scaled_watermark < 10)
 		scaled_watermark = 10;
-	if (scaled_watermark > maxwsf)
-		scaled_watermark = maxwsf;
+	if (scaled_watermark > mywsf)
+		scaled_watermark = mywsf;
 
 	if (atoi(scaled_wmark) == scaled_watermark)
 		return;
@@ -796,18 +846,20 @@ main(int argc, char **argv)
 			break;
 	}
 
+	update_zone_watermarks();
+
 	/*
 	 * If user specifies a maximum gap value for gap between low
 	 * and high watermarks, recompute maxwsf to account for that.
 	 * Update zone page information first.
          */
-	update_zone_watermarks();
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
 		for (i=0; i<MAX_NUMANODES; i++)
 			total_managed += managed_pages[i];
 		maxwsf = (maxgap * 10000UL * 1024UL * 1024UL * 1024UL)/(total_managed * getpagesize());
 	}
+	mywsf = maxwsf;
 
 	/*
 	 * Initialize number of higher order pages seen in last scan
@@ -840,10 +892,15 @@ main(int argc, char **argv)
 
 		/*
 		 * Start with updated zone watermarks and number of hugepages
-		 * allocated since these can be adjusted by user any time
+		 * allocated since these can be adjusted by user any time.
+		 * Update maxwsf to account for hugepages just in case
+		 * number of hugepages changed unless user already gave
+		 * a maxgap value.
 		 */
 		update_zone_watermarks();
 		update_hugepages();
+		if (maxgap == 0)
+			rescale_maxwsf();
 
 		/*
 		 * Keep track of time to calculate the compaction and
@@ -897,7 +954,7 @@ main(int argc, char **argv)
 			 * adjust watermarks only once per wake up.
 			 */
 			result |= predict(free, page_lsq[nid],
-					high_wmark[nid], nid);
+					high_wmark[nid], low_wmark[nid], nid);
 
 			if (last_bigpages[nid] != 0) {
 				clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
@@ -910,7 +967,7 @@ main(int argc, char **argv)
 						last_bigpages[nid]) /
 						time_elapsed;
 					if (compaction_rate)
-						log_info(3, "** compaction rate on node %d is %ld pages/msec",
+						log_info(5, "** compaction rate on node %d is %ld pages/msec",
 						nid, compaction_rate);
 				}
 			}
@@ -962,7 +1019,7 @@ main(int argc, char **argv)
 
 			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
 			if (reclaim_rate)
-				log_info(3, "reclamation rate is %ld pages/msec", reclaim_rate);
+				log_info(5, "** reclamation rate is %ld pages/msec", reclaim_rate);
 		}
 		last_reclaimed = reclaimed_pages;
 

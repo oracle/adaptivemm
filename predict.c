@@ -147,7 +147,7 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
  */
 unsigned long
 predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
-	unsigned long high_wmark, int nid)
+	unsigned long high_wmark, unsigned long low_wmark, int nid)
 {
 	int order;
 	long long m[MAX_ORDER];
@@ -220,7 +220,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		if (frag_vec[0].free_pages <= high_wmark) {
 			retval |= MEMPREDICT_RECLAIM;
 			log_info(2, "Reclamation recommended due to free pages being below high watermark");
-			log_info(2, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
+			log_info(2, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
 		}
 		else {
 			time_taken = (frag_vec[0].free_pages - high_wmark)
@@ -239,7 +239,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			 */
 			if (time_taken >= time_to_catchup) {
 				log_info(3, "Reclamation recommended due to high memory consumption rate");
-				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, high watermark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, high_wmark);
+				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
 				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld msec", time_taken, time_to_catchup);
 				retval |= MEMPREDICT_RECLAIM;
 			}
@@ -314,6 +314,9 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			 */
 			if (higher_order_pages < (m[order] * x_cross)) {
 				log_info(2, "Compaction recommended on node %d. Running out of order %d pages", nid, order);
+				if (order < (MAX_ORDER -1))
+					log_info(3, "No. of free order %d pages = %ld base pages, consumption rate=%ld pages/msec", order, (frag_vec[order+1].free_pages - frag_vec[order].free_pages), m[order]);
+				 log_info(3, "Current compaction rate=%ld pages/msec", compaction_rate);
 				retval |= MEMPREDICT_COMPACT;
 				break;
 			}
