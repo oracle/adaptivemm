@@ -369,6 +369,7 @@ rescale_maxwsf()
 	 * into account
 	 */
 	new_wsf = (gap * 10000)/total_managed;
+
 	if ((new_wsf > 9) && (new_wsf < 1000))
 		mywsf = new_wsf;
 	else
@@ -422,7 +423,7 @@ rescale_watermarks(int scale_up)
 	unsigned long scaled_watermark, frac_free;
 	char scaled_wmark[20], *c;
 	unsigned long total_managed = 0;
-	unsigned long lmark, hmark;
+	unsigned long mmark, lmark, hmark;
 
 	for (i=0; i<MAX_NUMANODES; i++)
 		total_managed += managed_pages[i];
@@ -567,6 +568,55 @@ rescale_watermarks(int scale_up)
 		scaled_watermark = 10;
 	if (scaled_watermark > mywsf)
 		scaled_watermark = mywsf;
+
+	/*
+	 * Before committing to the new higher value of wsf, make sure
+	 * it will not cause low watermark to be raised above current
+	 * number of free pages. If that were to happen OOM killer will
+	 * step in immediately. Allow for at least 2% headroom over low
+	 * watermark.
+	 */
+	if (scale_up) {
+		unsigned long threshold, loose_pages = total_free_pages +
+							total_cache_pages;
+		unsigned long new_lmark;
+
+		mmark = lmark = 0;
+		for (i=0; i<MAX_NUMANODES; i++) {
+			mmark += min_wmark[i];
+			lmark += low_wmark[i];
+		}
+
+		/*
+		 * Estimate the new low watermark if we were to increase
+		 * WSF to this new value
+		 */
+		new_lmark = mmark +
+			((lmark-mmark)*scaled_watermark/atoi(scaled_wmark));
+
+		/*
+		 * When low watermark gets raised, make sure there will
+		 * still be enough free pages left for system to continue
+		 * making progress. Use a headroom of 2% of currently
+		 * available free pages. If the number of free pages is
+		 * already below this threshhold, setting this new wsf
+		 * is very likely to kick OOM killer.
+		 */
+		threshold = new_lmark + total_free_pages * 1.02;
+
+		if (loose_pages <= threshold) {
+			/*
+			 * See if we can raise wsf by 10%
+			 */
+			scaled_watermark = (atoi(scaled_wmark) * 11)/10;
+			new_lmark = mmark + ((lmark-mmark)*scaled_watermark/atoi(scaled_wmark));
+			threshold = new_lmark + total_free_pages * 1.02;
+			if (loose_pages <= threshold) {
+				log_info(2, "Not enough free pages to raise watermarks, free pages=%ld, reclaimable pages=%ld, new wsf=%ld, min=%ld, current low wmark=%ld, new projected low watermark=%ld", total_free_pages, total_cache_pages, scaled_watermark, mmark, lmark, new_lmark);
+				return;
+			}
+		}
+	}
 
 	if (atoi(scaled_wmark) == scaled_watermark)
 		return;
