@@ -618,8 +618,11 @@ rescale_watermarks(int scale_up)
 		}
 	}
 
-	if (atoi(scaled_wmark) == scaled_watermark)
+	if (atoi(scaled_wmark) == scaled_watermark) {
+		if (scaled_watermark == mywsf)
+			log_info(2, "At max WSF already");
 		return;
+	}
 
 	log_info(1, "Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
 	if (dry_run)
