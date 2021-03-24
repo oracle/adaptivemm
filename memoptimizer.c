@@ -249,12 +249,12 @@ update_hugepages()
 				/* Check if it is one of the hugepages dir */
 				if (strstr(ep->d_name, "hugepages-") == NULL)
 					continue;
-				sprintf(tmpstr, "%s/%s/nr_hugepages", HUGEPAGESINFO, ep->d_name);
+				snprintf(tmpstr, sizeof(tmpstr), "%s/%s/nr_hugepages", HUGEPAGESINFO, ep->d_name);
 				if ((fp = fopen(tmpstr, "r")) != NULL) {
-					if (fgets(tmpstr, 256, fp) != NULL) {
+					if (fgets(tmpstr, sizeof(tmpstr), fp) != NULL) {
 						sscanf(tmpstr, "%ld", &pages);
 						sscanf(ep->d_name, "hugepages-%ldkB", &psize);
-						newhpages += pages * psize /base_psize;
+						newhpages += pages * psize / base_psize;
 					}
 				}
 			}
@@ -272,6 +272,11 @@ update_hugepages()
 /*
  * Parse watermarks and zone_managed_pages values from /proc/zoneinfo
  */
+#define ZONE_MIN	"min"
+#define ZONE_LOW	"low"
+#define ZONE_HIGH	"high"
+#define ZONE_MNGD	"managed"
+#define ZONE_PGST	"pagesets"
 int
 update_zone_watermarks()
 {
@@ -310,15 +315,15 @@ update_zone_watermarks()
 						goto out;
 
 					sscanf(line, "%s %lu\n", name, &val);
-					if (strcmp(name, "min") == 0)
+					if (strncmp(name, ZONE_MIN, sizeof(ZONE_MIN)) == 0)
 						min = val;
-					if (strcmp(name, "low") == 0)
+					if (strncmp(name, ZONE_LOW, sizeof(ZONE_LOW)) == 0)
 						low = val;
-					if (strcmp(name, "high") == 0)
+					if (strncmp(name, ZONE_HIGH, sizeof(ZONE_HIGH)) == 0)
 						high = val;
-					if (strcmp(name, "managed") == 0)
+					if (strncmp(name, ZONE_MNGD, sizeof(ZONE_MNGD)) == 0)
 						managed = val;
-					if (strcmp(name, "pagesets") == 0)
+					if (strncmp(name, ZONE_PGST, sizeof(ZONE_PGST)) == 0)
 						break;
 				}
 
@@ -700,6 +705,9 @@ check_permissions(void)
  *	0	Parsing failed
  */
 #define MAXTOKEN	32
+#define OPT_V		"VERBOSE"
+#define OPT_GAP		"MAXGAP"
+#define OPT_AGGR	"AGGRESSIVENESS"
 int
 parse_config()
 {
@@ -761,15 +769,15 @@ parse_config()
 		token[j] = 0;
 		val = strtoul(&buf[i+1], NULL, 0);
 
-		if (strncmp(token, "VERBOSE", sizeof("VERBOSE")) == 0) {
+		if (strncmp(token, OPT_V, sizeof(OPT_V)) == 0) {
 			if(val <= MAX_VERBOSE) 
 				verbose = val;
 			else
 				log_err("Verbosity value is greater than %d. Proceeding with defaults", MAX_VERBOSE);
 		}
-		else if (strncmp(token, "MAXGAP", sizeof("MAXGAP")) == 0)
+		else if (strncmp(token, OPT_GAP, sizeof(OPT_GAP)) == 0)
 			maxgap = val;
-		else if (strncmp(token, "AGGRESSIVENESS", sizeof("AGGRESSIVENESS")) == 0) {
+		else if (strncmp(token, OPT_AGGR, sizeof(OPT_AGGR)) == 0) {
 			if(val <= MAX_AGGRESSIVE)
 				aggressiveness = val;
 			else
