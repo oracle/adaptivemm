@@ -233,11 +233,16 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 						high_wmark) / reclaim_rate;
 
 			/*
-			 * If time taken to go below high_wmark is greater than
-			 * the time taken to reclaim the pages then we need to
-			 * start kswapd now.
+			 * If time taken to go below high_wmark is fairly
+			 * close to time it will take to reclaim enough
+			 * then we need to start kswapd now. We will use
+			 * 3 times of the time to catch up as threshold
+			 * just to ensure reclamationprocess has enough time.
+			 * This helps eliminate the possibility of forcing
+			 * reclamation when time to go below high watermark
+			 * is too far in the future.
 			 */
-			if (time_taken >= time_to_catchup) {
+			if (time_taken <= (3*time_to_catchup)) {
 				log_info(3, "Reclamation recommended due to high memory consumption rate");
 				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
 				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld msec", time_taken, time_to_catchup);
@@ -325,7 +330,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			/*
 			 * How long before we run out of current order
 			 * pages.  We will constrain the size of window
-			 * we lok forward in since large window means
+			 * we look forward in since large window means
 			 * the consumption trend can change in that time.
 			 * It will be prudent to defer the decision to
 			 * initiate compaction until the exhaustion period
