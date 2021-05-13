@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.4.0"
+#define VERSION		"1.4.1"
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
@@ -189,25 +189,36 @@ scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
 }
 
 /*
- * Find the next normal zone in buddyinfo file. When one is found,
- * update free pages vector and return 1.
+ * Compile free page info for the next node and update free pages
+ * vector passed by the caller.
  *
- * TODO: Should this consider "Movable" zones as well for reclamation
- *	and compaction?
+ * RETURNS:
+ *	1	No error
+ *	0	Error
+ *	-1	EOF
+ *
  */
 int
-get_next_zone(FILE *ifile, int *nid, unsigned long *nr_free)
+get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 {
 	char line[LINE_MAX];
 	char node[10], zone[10];
+	unsigned long free_pages[MAX_ORDER];
+	int order, current_node = -1;
 
+	for (order = 0; order < MAX_ORDER; order++)
+		nr_free[order] = 0;
 	/*
 	 * Read the file one line at a time until we find the next
 	 * "Normal" zone or reach EOF
 	 */
 	while (1) {
+		long cur_pos;
+
+		cur_pos = ftell(ifile);
 		if (fgets(line, sizeof(line), ifile) == NULL) {
 			if (feof(ifile)) {
+				rewind(ifile);
 				return (-1);
 			} else {
 				log_err("fgets(): %s",
@@ -216,15 +227,33 @@ get_next_zone(FILE *ifile, int *nid, unsigned long *nr_free)
 			}
 		}
 
-		if (!scan_line(line, node, zone, nr_free)) {
+		if (!scan_line(line, node, zone, free_pages)) {
 			log_err("invalid input: %s", line);
 			return 0;
 		}
-		if (strcmp(zone, "Normal") == 0)
-			break;
-	}
-	sscanf(node, "%d", nid);
+		sscanf(node, "%d", nid);
 
+		/*
+		 * Accumulate free pages infor for just the current node
+		 */
+		if (current_node == -1)
+			current_node = *nid;
+
+		if (*nid != current_node) {
+			fseek(ifile, cur_pos, SEEK_SET);
+			break;
+		}
+
+		/* Skip DMA zone */
+		if (strcmp(zone, "DMA") == 0)
+			continue;
+
+		/* Add up free page info for each order */
+		for (order = 0; order < MAX_ORDER; order++)
+			nr_free[order] += free_pages[order];
+	}
+
+	*nid = current_node;
 	return 1;
 }
 
@@ -283,6 +312,7 @@ update_zone_watermarks()
 	FILE *fp = NULL;
 	size_t len = 100;
 	char *line = malloc(len);
+	int current_node = -1;
 
 	fp = fopen(ZONEINFO, "r");
 	if (!fp)
@@ -290,16 +320,22 @@ update_zone_watermarks()
 
 	while ((fgets(line, len, fp) != NULL)) {
 		if (strncmp(line, "Node", 4) == 0) {
-			char node[20];
+			char node[20], zone[20], zone_name[20];
 			int nid;
-			char zone[20];
-			char zone_name[20];
+			unsigned long min, low, high, managed;
 
 			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
+			if ((current_node == -1) || (current_node != nid)) {
+				current_node = nid;
+				min_wmark[nid] = low_wmark[nid] = 0;
+				high_wmark[nid] = managed_pages[nid] = 0;
+			}
 
-			if (strcmp("Normal", zone_name) == 0) {
-				unsigned long min, low, high, managed;
-
+			/*
+			 * Add up watermarks and managed pages for all
+			 * zones for the node except DMA zone.
+			 */
+			if (strcmp("DMA", zone_name) != 0) {
 				/*
 				 * We found the normal zone. Now look for
 				 * line "pages free"
@@ -327,10 +363,10 @@ update_zone_watermarks()
 						break;
 				}
 
-				min_wmark[nid] = min;
-				low_wmark[nid] = low;
-				high_wmark[nid] = high;
-				managed_pages[nid] = managed;
+				min_wmark[nid] += min;
+				low_wmark[nid] += low;
+				high_wmark[nid] += high;
+				managed_pages[nid] += managed;
 			}
 		}
 	}
@@ -349,7 +385,7 @@ out:
  * this results in kernel computing watermarks that are just
  * too high for the remaining memory that is truly subject to
  * reclamation. Rescale max wsf down so kernel will end up
- * computing watermarks that are mor ein line with real
+ * computing watermarks that are more in line with real
  * available memory.
  */
 void
@@ -359,8 +395,15 @@ rescale_maxwsf()
 	unsigned long gap, new_wsf;
 	int i;
 
+	if (total_hugepages == 0)
+		return;
+
 	for (i=0; i<MAX_NUMANODES; i++)
 		total_managed += managed_pages[i];
+	if (total_managed == 0) {
+		log_info(1, "Number of managed pages is 0");
+		return;
+	}
 
 	/*
 	 * Compute what the gap would be if maxwsf is applied to
@@ -437,6 +480,10 @@ rescale_watermarks(int scale_up)
 	 * calculations since they are not reclaimable
 	 */
 	total_managed -= total_hugepages;
+	if (total_managed == 0) {
+		log_info(1, "Number of managed non-huge pages is 0");
+		return;
+	}
 
 	/*
 	 * Fraction of managed pages currently free
@@ -625,7 +672,7 @@ rescale_watermarks(int scale_up)
 
 	if (atoi(scaled_wmark) == scaled_watermark) {
 		if (scaled_watermark == mywsf)
-			log_info(2, "At max WSF already");
+			log_info(2, "At max WSF already (max WSFF = %u", mywsf);
 		return;
 	}
 
@@ -976,11 +1023,8 @@ main(int argc, char **argv)
 		 */
 		clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
 
-		while ((retval = get_next_zone(ifile, &nid, nr_free)) != -1) {
+		while ((retval = get_next_node(ifile, &nid, nr_free)) != 0) {
 			unsigned long total_free;
-
-			if (retval == 0)
-				break;
 
 			/*
 			 * Assemble the fragmented free memory vector:
@@ -1055,7 +1099,20 @@ main(int argc, char **argv)
 			 */
 			compaction_requested[nid] = 0;
 			total_free_pages += free[0].free_pages;
+
+			/*
+			 * If all of /proc/buddyinfo has been processed,
+			 * terminate this loop and start the next one
+			 */
+			if (retval == -1)
+				break;
 		}
+
+		if (retval == 0) {
+			log_err("error reading buddyinfo (%s)", strerror(errno));
+			bailout(1);
+		}
+
 
 		/*
 		 * Adjust watermarks if needed. Both MEMPREDICT_RECLAIM
@@ -1084,7 +1141,6 @@ main(int argc, char **argv)
 		}
 		last_reclaimed = reclaimed_pages;
 
-		rewind(ifile);
 		result = 0;
 		sleep(periodicity);
 	}
