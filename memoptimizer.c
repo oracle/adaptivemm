@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.4.1"
+#define VERSION		"1.4.2"
 
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 #define	BUDDYINFO		"/proc/buddyinfo"
@@ -198,11 +198,15 @@ scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
  *	-1	EOF
  *
  */
+#define FLDLEN	20
+#define NO_ERR	1
+#define ERR	0
+#define EOF_RET	-1
 int
 get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 {
 	char line[LINE_MAX];
-	char node[10], zone[10];
+	char node[FLDLEN], zone[FLDLEN];
 	unsigned long free_pages[MAX_ORDER];
 	int order, current_node = -1;
 
@@ -215,21 +219,24 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 	while (1) {
 		long cur_pos;
 
-		cur_pos = ftell(ifile);
+		if ((cur_pos = ftell(ifile)) < 0) {
+			log_err("ftell on buddyinfo failed (%s)", strerror(errno));
+			return ERR;
+		}
 		if (fgets(line, sizeof(line), ifile) == NULL) {
 			if (feof(ifile)) {
 				rewind(ifile);
-				return (-1);
+				return EOF_RET;
 			} else {
 				log_err("fgets(): %s",
 						strerror(ferror(ifile)));
-				return 0;
+				return ERR;
 			}
 		}
 
 		if (!scan_line(line, node, zone, free_pages)) {
 			log_err("invalid input: %s", line);
-			return 0;
+			return ERR;
 		}
 		sscanf(node, "%d", nid);
 
@@ -240,12 +247,15 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 			current_node = *nid;
 
 		if (*nid != current_node) {
-			fseek(ifile, cur_pos, SEEK_SET);
+			if (fseek(ifile, cur_pos, SEEK_SET) < 0) {
+				log_err("fseek on buddyinfo failed (%s)", strerror(errno));
+				return ERR;
+			}
 			break;
 		}
 
 		/* Skip DMA zone */
-		if (strcmp(zone, "DMA") == 0)
+		if (strncmp(zone, "DMA", FLDLEN) == 0)
 			continue;
 
 		/* Add up free page info for each order */
@@ -254,7 +264,7 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 	}
 
 	*nid = current_node;
-	return 1;
+	return NO_ERR;
 }
 
 /*
@@ -320,7 +330,7 @@ update_zone_watermarks()
 
 	while ((fgets(line, len, fp) != NULL)) {
 		if (strncmp(line, "Node", 4) == 0) {
-			char node[20], zone[20], zone_name[20];
+			char node[FLDLEN], zone[FLDLEN], zone_name[FLDLEN];
 			int nid;
 			unsigned long min, low, high, managed;
 
@@ -335,7 +345,7 @@ update_zone_watermarks()
 			 * Add up watermarks and managed pages for all
 			 * zones for the node except DMA zone.
 			 */
-			if (strcmp("DMA", zone_name) != 0) {
+			if (strncmp("DMA", zone_name, FLDLEN) != 0) {
 				/*
 				 * We found the normal zone. Now look for
 				 * line "pages free"
