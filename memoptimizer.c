@@ -40,14 +40,21 @@
 #include <ctype.h>
 #include "predict.h"
 
-#define VERSION		"1.4.2"
+#define VERSION		"1.5.0"
 
-#define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
+/*
+ * System files that provide information
+ */
 #define	BUDDYINFO		"/proc/buddyinfo"
 #define ZONEINFO		"/proc/zoneinfo"
-#define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define VMSTAT			"/proc/vmstat"
 #define HUGEPAGESINFO		"/sys/kernel/mm/hugepages"
+
+/*
+ * System files to control reclamation and compaction
+ */
+#define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
+#define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 
 #define CONFIG_FILE1		"/etc/sysconfig/memoptimizer"
 #define CONFIG_FILE2		"/etc/default/memoptimizer"
@@ -268,7 +275,11 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 }
 
 /*
- * Compute the number of base pages tied up in hugepages
+ * Compute the number of base pages tied up in hugepages.
+ *
+ * Return values:
+ *	-1	Failed to read hugepages info
+ *	>=0	Percentage change in number of hugepages since last update
  */
 int
 update_hugepages()
@@ -276,6 +287,7 @@ update_hugepages()
 	DIR *dp;
 	struct dirent *ep;
 	unsigned long newhpages = 0;
+	int rc = -1;
 
 	dp = opendir(HUGEPAGESINFO);
 	if (dp != NULL) {
@@ -298,14 +310,33 @@ update_hugepages()
 				}
 			}
 		}
-		if (newhpages)
-			total_hugepages = newhpages;
+		if (newhpages) {
+			unsigned long tmp;
+
+			tmp = abs(newhpages - total_hugepages);
+			/*
+			 * If number of hugepages changes from 0 to a
+			 * positive number, percentage calculation will
+			 * fail. Set the percentage to a high number
+			 */
+			if (total_hugepages == 0)
+				rc = INT_MAX;
+			else
+				rc = (tmp*100)/total_hugepages;
+		}
+		/*
+		 * If number of hugepages changes to 0, that would be
+		 * a 100% change
+		 */
+		else if (total_hugepages)
+			rc = 100;
+		else
+			rc = 0;
+		total_hugepages = newhpages;
 		closedir(dp);
-	} else {
-		return 0;
 	}
 
-	return 1;
+	return rc;
 }
 
 /*
@@ -752,6 +783,35 @@ check_permissions(void)
 }
 
 /*
+ * one_time_initializations() - Initialize settings that are set once at
+ *	memoptimizer startup
+ *
+ */
+void
+one_time_initializations()
+{
+	/*
+	 * Update free page and hugepage counts before initialization
+	 */
+	update_zone_watermarks();
+	update_hugepages();
+}
+
+/*
+ * updates_for_hugepages() - Update any values that need to be updated
+ *	whenever number of hugepages on system changes significantly
+ */
+void
+updates_for_hugepages(int delta)
+{
+	/*
+	 * Don't do anything for delta less than 5%
+	 */
+	if (delta < 5)
+		return;
+}
+
+/*
  * parse_config() - Parse the configuration file CONFIG_FILE1 or CONFIG_FILE2
  *
  * Read the configuration files skipping comment and blank lines. Each
@@ -1001,6 +1061,8 @@ main(int argc, char **argv)
 
 	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
 
+	one_time_initializations();
+
 	while (1) {
 		unsigned long nr_free[MAX_ORDER];
 		struct frag_info free[MAX_ORDER];
@@ -1016,7 +1078,9 @@ main(int argc, char **argv)
 		 * a maxgap value.
 		 */
 		update_zone_watermarks();
-		update_hugepages();
+		retval = update_hugepages();
+		if (retval > 0)
+			updates_for_hugepages(retval);
 		if (maxgap == 0)
 			rescale_maxwsf();
 
