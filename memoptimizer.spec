@@ -1,5 +1,5 @@
 Name: memoptimizer
-Version: 1.3.0
+Version: 1.5.0
 Release: 1%{?dist}
 License: GPLv2
 Summary: Free memory optimizer
@@ -58,6 +58,18 @@ install -D -m 644 memoptimizer.8 %{buildroot}%{_mandir}/man8/memoptimizer.8
 %{_presetdir}/50-memoptimizer.preset
 
 %changelog
+* Thu Jul 29 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.5.0-1
+- Add support for one time initializations at start up
+- Add support for tunables value updates upon change
+  in number of hugepages on the system
+
+* Mon May 17 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.4.2-1
+- Fix crash on systems with less than 4G memory
+
+* Thu Mar 25 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.4.0-1
+- Various algorithm updates to reduce the possibility of OOM
+  killer being invoked because of memoptimizer's actions
+
 * Thu Feb 11 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.3.0-1
 - New upstream release. Various enhancements to reduce system
   resource usage by the daemon. Fix to correct the sense of

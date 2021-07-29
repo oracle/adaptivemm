@@ -56,6 +56,11 @@
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
 
+/*
+ * System files to control negative dentries
+ */
+#define NEG_DENTRY_LIMIT	"/proc/sys/fs/negative-dentry-limit"
+
 #define CONFIG_FILE1		"/etc/sysconfig/memoptimizer"
 #define CONFIG_FILE2		"/etc/default/memoptimizer"
 
@@ -63,6 +68,7 @@
 
 #define MAX_VERBOSE 5
 #define MAX_AGGRESSIVE 3
+#define MAX_NEGDENTRY	100
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
@@ -74,6 +80,7 @@ int debug_mode, verbose;
 unsigned long maxgap;
 int aggressiveness = 2;
 int periodicity;
+int neg_dentry_pct = 15;	/* default is 1.5% */
 
 /*
  * Highest value to set watermark_scale_factor to. This value is tied
@@ -783,6 +790,85 @@ check_permissions(void)
 }
 
 /*
+ * update_neg_dentry() - Update the limit for negative dentries based
+ *	upon current system state
+ *
+ * Negative dentry limit is expressed as a percentage of total memory
+ * on the system. If a significant amount of memory on the system is
+ * allocated to hugepages, that percentage of total memory can be too
+ * high a number of pages tobe allowed to be consumed by negative
+ * dentries. To compensate for this, the percentage should be scaled
+ * down so the number of maximum pages allowed for negative dentries
+ * amounts to about the same percentage of non-hugepage memory pages.
+ * As an example, a system with 512GB of memory:
+ *
+ *	512GB = 134217728 4k pages
+ *
+ * If negative dentry limit was set to 1%, that would amount to
+ * 1342177 pages. Now let us allocate 448GB of this memory to
+ * hugepages leaving 64GB of base pages:
+ *
+ *	64GB = 16777216 4k pages
+ *
+ * If we still allowed 1342177 pages to be consumed by negative
+ * dentries, that would amount to 8% of reclaimable memory which
+ * is significantly higher than original intent. To keep in line with
+ * the original intent of allowing only 1% of reclaimable memory
+ * this percentage should be scaled down to .1 which then yields up
+ * to 134217 allowed to be consumed by negative dentries and
+ *
+ *	(134217/16777216)*100 = 0.08%
+ *
+ * NOTE: /proc/sys/fs/negative-dentry-limit is expressed as fraction
+ *	of 1000, so above value will be translated to 1 which will be
+ *	0.1%
+ */
+void
+update_neg_dentry()
+{
+	int fd;
+
+	/*
+	 * Set up negative dentry limit if functionality is supported on
+	 * this kernel.
+	 */
+	if (access(NEG_DENTRY_LIMIT, F_OK) == 0) {
+		if ((fd = open(NEG_DENTRY_LIMIT, O_RDWR)) == -1) {
+			log_err("Failed to open "NEG_DENTRY_LIMIT" (%s)", strerror(errno));
+		} else {
+			/*
+			 * Compute the value for negative dentry limit
+			 * based upon just the reclaimable pages
+			 */
+			int val, i;
+			unsigned long reclaimable_pages, total_managed = 0;
+			char neg_dentry[LINE_MAX];
+
+			for (i = 0; i < MAX_NUMANODES; i++)
+				total_managed += managed_pages[i];
+			reclaimable_pages = total_managed - total_hugepages;
+			val = (reclaimable_pages * neg_dentry_pct)/total_managed;
+			/*
+			 * This value should not be 0 since that would
+			 * disallow cacheing of negative dentries. It
+			 * also not be higher than 75 since that would
+			 * allow most of the free memory to be consumed
+			 * by negative dentries.
+			 */
+			if (val < 1)
+				val = 1;
+			if (val > MAX_NEGDENTRY)
+				val = MAX_NEGDENTRY;
+			snprintf(neg_dentry, sizeof(neg_dentry), "%u\n", val);
+			log_info(1, "Updating negative dentry limit to %s", neg_dentry);
+			if (write(fd, neg_dentry, strlen(neg_dentry)) < 0)
+				log_err("Failed to write to "NEG_DENTRY_LIMIT" (%s)", strerror(errno));
+			close(fd);
+		}
+	}
+}
+
+/*
  * one_time_initializations() - Initialize settings that are set once at
  *	memoptimizer startup
  *
@@ -795,6 +881,8 @@ one_time_initializations()
 	 */
 	update_zone_watermarks();
 	update_hugepages();
+
+	update_neg_dentry();
 }
 
 /*
@@ -809,6 +897,8 @@ updates_for_hugepages(int delta)
 	 */
 	if (delta < 5)
 		return;
+
+	update_neg_dentry();
 }
 
 /*
@@ -825,6 +915,7 @@ updates_for_hugepages(int delta)
 #define OPT_V		"VERBOSE"
 #define OPT_GAP		"MAXGAP"
 #define OPT_AGGR	"AGGRESSIVENESS"
+#define OPT_NEG_DENTRY	"NEG-DENTRY-CAP"
 int
 parse_config()
 {
@@ -895,10 +986,28 @@ parse_config()
 		else if (strncmp(token, OPT_GAP, sizeof(OPT_GAP)) == 0)
 			maxgap = val;
 		else if (strncmp(token, OPT_AGGR, sizeof(OPT_AGGR)) == 0) {
-			if(val <= MAX_AGGRESSIVE)
+			if (val <= MAX_AGGRESSIVE)
 				aggressiveness = val;
 			else
 				log_err("Aggressiveness value is greater than %d. Proceeding with defaults", MAX_AGGRESSIVE);
+		}
+		else if (strncmp(token, OPT_NEG_DENTRY, sizeof(OPT_NEG_DENTRY)) == 0) {
+			/*
+			 * negative dentry memory usage cap is expressed as
+			 * a percentage of total memory on the system. Any
+			 * number above MAX_NEGDENTRY can bring the system
+			 * to its knees. A value of 0 here will disable
+			 * negative dentry cacheing, so don't allow that
+			 * either. If a sysadmin wants to disable cacheing,
+			 * they can do it through sysctl tunables separately
+			 * instead to doing it through memoptimizer
+			 */
+			if (val > MAX_NEGDENTRY)
+				log_err("Bad value for negative dentry cap = %d (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
+			else if (val < 1)
+				neg_dentry_pct = 1;
+			else
+				neg_dentry_pct = val;
 		}
 		else {
 			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
