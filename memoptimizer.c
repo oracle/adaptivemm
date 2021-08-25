@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "predict.h"
 
 #define VERSION		"1.5.0"
@@ -81,6 +82,10 @@ unsigned long maxgap;
 int aggressiveness = 2;
 int periodicity;
 int neg_dentry_pct = 15;	/* default is 1.5% */
+
+/* Flags to enable various modules */
+bool memory_pressure_check_enabled = true;
+bool neg_dentry_check_enabled = true;
 
 /*
  * Highest value to set watermark_scale_factor to. This value is tied
@@ -446,7 +451,7 @@ rescale_maxwsf()
 	if (total_hugepages == 0)
 		return;
 
-	for (i=0; i<MAX_NUMANODES; i++)
+	for (i = 0; i < MAX_NUMANODES; i++)
 		total_managed += managed_pages[i];
 	if (total_managed == 0) {
 		log_info(1, "Number of managed pages is 0");
@@ -521,7 +526,7 @@ rescale_watermarks(int scale_up)
 	unsigned long total_managed = 0;
 	unsigned long mmark, lmark, hmark;
 
-	for (i=0; i<MAX_NUMANODES; i++)
+	for (i = 0; i < MAX_NUMANODES; i++)
 		total_managed += managed_pages[i];
 	/*
 	 * Hugepages should not be taken into account for watermark
@@ -559,7 +564,7 @@ rescale_watermarks(int scale_up)
 	 * Compute average high and low watermarks across nodes
 	 */
 	lmark = hmark = count = 0;
-	for (i=0; i<MAX_NUMANODES; i++) {
+	for (i = 0; i < MAX_NUMANODES; i++) {
 		lmark += low_wmark[i];
 		hmark += high_wmark[i];
 		if (low_wmark[i] != 0 )
@@ -682,7 +687,7 @@ rescale_watermarks(int scale_up)
 		unsigned long new_lmark;
 
 		mmark = lmark = 0;
-		for (i=0; i<MAX_NUMANODES; i++) {
+		for (i = 0; i < MAX_NUMANODES; i++) {
 			mmark += min_wmark[i];
 			lmark += low_wmark[i];
 		}
@@ -829,6 +834,12 @@ update_neg_dentry()
 	int fd;
 
 	/*
+	 * bail out if this module is not enabled
+	 */
+	if (!neg_dentry_check_enabled)
+		return;
+
+	/*
 	 * Set up negative dentry limit if functionality is supported on
 	 * this kernel.
 	 */
@@ -869,23 +880,6 @@ update_neg_dentry()
 }
 
 /*
- * one_time_initializations() - Initialize settings that are set once at
- *	memoptimizer startup
- *
- */
-void
-one_time_initializations()
-{
-	/*
-	 * Update free page and hugepage counts before initialization
-	 */
-	update_zone_watermarks();
-	update_hugepages();
-
-	update_neg_dentry();
-}
-
-/*
  * updates_for_hugepages() - Update any values that need to be updated
  *	whenever number of hugepages on system changes significantly
  */
@@ -902,6 +896,208 @@ updates_for_hugepages(int delta)
 }
 
 /*
+ * check_memory_pressure() - Evaluate and respond to memory consumption trend
+ *
+ * Update computation of memory cpnmsumption trend for overall memory
+ * consumption and consumption of each order page. Take action by changing
+ * watermarks or forcing memory compaction if an issues is anticipated in
+ * near future
+ *
+ * Input:
+ *	init - flag. When set, indicates this module should perform any
+ *		initializations it needs for its operation. The module
+ *		may choose to perform only initiazations when this flag
+ *		is set
+ */
+void
+check_memory_pressure(bool init)
+{
+	static int compaction_requested[MAX_NUMANODES];
+	static unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed;
+	static FILE *ifile;
+	unsigned long nr_free[MAX_ORDER];
+	struct frag_info free[MAX_ORDER];
+	unsigned long time_elapsed, reclaimed_pages;
+	unsigned long result = 0;
+	int i, order, nid, retval;
+	struct timespec spec, spec_after, spec_before;
+	char *ipath;
+
+	/*
+	 * bail out if this module is not enabled
+	 */
+	if (!memory_pressure_check_enabled)
+		return;
+
+	if (init) {
+		/*
+		 * Initialize number of higher order pages seen in last scan
+		 * and compaction requested per node
+		 */
+		for (i = 0; i < MAX_NUMANODES; i++) {
+			last_bigpages[i] = 0;
+			compaction_requested[i] = 0;
+		}
+		last_reclaimed = 0;
+
+		ipath = BUDDYINFO;
+		if ((ifile = fopen(ipath, "r")) == NULL) {
+			log_err("fopen(input file)");
+			bailout(1);
+		}
+
+		return;
+	}
+
+	/*
+	 * Keep track of time to calculate the compaction and
+	 * reclaim rates
+	 */
+	total_free_pages = 0;
+
+	/*
+	 * Get time from CLOCK_MONOTONIC_RAW which is not subject
+	 * to perturbations caused by sysadmin or ntp adjustments.
+	 * This ensures reliable calculations for the least square
+	 * fit algorithm.
+	 */
+	clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
+
+	while ((retval = get_next_node(ifile, &nid, nr_free)) != 0) {
+		unsigned long total_free;
+
+		/*
+		 * Assemble the fragmented free memory vector:
+		 * the fragmented free memory at a given order is
+		 * the sum of the occupancies at all lower orders.
+		 * Memory is never fragmented at the lowest order
+		 * and so free[0] is overloaded with the total free
+		 * memory.
+		 */
+		total_free = free[0].free_pages = 0;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+		for (order = 0; order < MAX_ORDER; order++) {
+			unsigned long free_pages;
+
+			free_pages = nr_free[order] << order;
+			total_free += free_pages;
+			if (order < MAX_ORDER - 1) {
+				free[order + 1].free_pages =
+					free[order].free_pages + free_pages;
+				free[order + 1].msecs = (long long)get_msecs(&spec);
+			}
+		}
+		free[0].free_pages = total_free;
+		free[0].msecs = (long long)get_msecs(&spec);
+
+		/*
+		 * Offer the predictor the fragmented free memory
+		 * vector but do nothing else unless it issues a
+		 * prediction. Accumulate recommendation from
+		 * prediction algorithm across all nodes so we
+		 * adjust watermarks only once per wake up.
+		 */
+		result |= predict(free, page_lsq[nid],
+				high_wmark[nid], low_wmark[nid], nid);
+
+		if (last_bigpages[nid] != 0) {
+			clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
+			time_elapsed = get_msecs(&spec_after) -
+					get_msecs(&spec_before);
+			if (free[MAX_ORDER-1].free_pages > last_bigpages[nid]) {
+				compaction_rate =
+					(free[MAX_ORDER-1].free_pages -
+					last_bigpages[nid]) / time_elapsed;
+				if (compaction_rate)
+					log_info(5, "** compaction rate on node %d is %ld pages/msec",
+					nid, compaction_rate);
+			}
+		}
+		last_bigpages[nid] = free[MAX_ORDER-1].free_pages;
+
+		/*
+		 * Start compaction if requested. There is a cost
+		 * to compaction in the kernel. Avoid issuing
+		 * compaction request twice in a row.
+		 */
+		if (result & MEMPREDICT_COMPACT) {
+			if (!compaction_requested[nid]) {
+				log_info(2, "Triggering compaction on node %d", nid);
+				if (!dry_run) {
+					compact(nid);
+					compaction_requested[nid] = 1;
+					result &= ~MEMPREDICT_COMPACT;
+				}
+			}
+		}
+		/*
+		 * Clear compaction requested flag for the next
+		 * sampling interval
+		 */
+		compaction_requested[nid] = 0;
+		total_free_pages += free[0].free_pages;
+
+		/*
+		 * If all of /proc/buddyinfo has been processed,
+		 * terminate this loop and start the next one
+		 */
+		if (retval == -1)
+			break;
+	}
+
+	if (retval == 0) {
+		log_err("error reading buddyinfo (%s)", strerror(errno));
+		bailout(1);
+	}
+
+
+	/*
+	 * Adjust watermarks if needed. Both MEMPREDICT_RECLAIM
+	 * and MEMPREDICT_LOWER_WMARKS can be set even though it
+	 * seems contradictory. That is because result accumulates
+	 * all prediction results across all nodes. One node may
+	 * have enough free pages or has increasing number of
+	 * free pages while another node may be running low. In
+	 * such cases, MEMPREDICT_RECLAIM takes precedence
+	 */
+	if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
+		if (result & MEMPREDICT_RECLAIM)
+			rescale_watermarks(1);
+		else
+			rescale_watermarks(0);
+	}
+
+	reclaimed_pages = no_pages_reclaimed();
+	if (last_reclaimed) {
+		clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
+		time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
+
+		reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
+		if (reclaim_rate)
+			log_info(5, "** reclamation rate is %ld pages/msec", reclaim_rate);
+	}
+	last_reclaimed = reclaimed_pages;
+}
+
+/*
+ * one_time_initializations() - Initialize settings that are set once at
+ *	memoptimizer startup
+ *
+ */
+void
+one_time_initializations()
+{
+	/*
+	 * Update free page and hugepage counts before initialization
+	 */
+	update_zone_watermarks();
+	update_hugepages();
+
+	update_neg_dentry();
+	check_memory_pressure(true);
+}
+
+/*
  * parse_config() - Parse the configuration file CONFIG_FILE1 or CONFIG_FILE2
  *
  * Read the configuration files skipping comment and blank lines. Each
@@ -913,8 +1109,10 @@ updates_for_hugepages(int delta)
  */
 #define MAXTOKEN	32
 #define OPT_V		"VERBOSE"
+#define OPT_ENB_PAGE	"ENABLE_FREE_PAGE_MGMT"
 #define OPT_GAP		"MAXGAP"
 #define OPT_AGGR	"AGGRESSIVENESS"
+#define OPT_ENB_DENTRY	"ENABLE_NEG_DENTRY_MGMT"
 #define OPT_NEG_DENTRY	"NEG-DENTRY-CAP"
 int
 parse_config()
@@ -983,6 +1181,8 @@ parse_config()
 			else
 				log_err("Verbosity value is greater than %d. Proceeding with defaults", MAX_VERBOSE);
 		}
+		else if (strncmp(token, OPT_ENB_PAGE, sizeof(OPT_ENB_PAGE)) == 0)
+			memory_pressure_check_enabled = ((val==0)?false:true);
 		else if (strncmp(token, OPT_GAP, sizeof(OPT_GAP)) == 0)
 			maxgap = val;
 		else if (strncmp(token, OPT_AGGR, sizeof(OPT_AGGR)) == 0) {
@@ -991,6 +1191,8 @@ parse_config()
 			else
 				log_err("Aggressiveness value is greater than %d. Proceeding with defaults", MAX_AGGRESSIVE);
 		}
+		else if (strncmp(token, OPT_ENB_DENTRY, sizeof(OPT_ENB_DENTRY)) == 0)
+			neg_dentry_check_enabled = ((val==0)?false:true);
 		else if (strncmp(token, OPT_NEG_DENTRY, sizeof(OPT_NEG_DENTRY)) == 0) {
 			/*
 			 * negative dentry memory usage cap is expressed as
@@ -1054,11 +1256,6 @@ main(int argc, char **argv)
 {
 	int c, i;
 	int errflag = 0;
-	int compaction_requested[MAX_NUMANODES];
-	char *ipath;
-	FILE *ifile;
-	unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed = 0;
-	unsigned long time_elapsed, reclaimed_pages;
 
 	openlog("memoptimizer", LOG_PID, LOG_DAEMON);
 	if (parse_config() == 0)
@@ -1142,42 +1339,23 @@ main(int argc, char **argv)
          */
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
-		for (i=0; i<MAX_NUMANODES; i++)
+		for (i = 0; i < MAX_NUMANODES; i++)
 			total_managed += managed_pages[i];
 		maxwsf = (maxgap * 10000UL * 1024UL * 1024UL * 1024UL)/(total_managed * getpagesize());
 	}
 	mywsf = maxwsf;
 
 	/*
-	 * Initialize number of higher order pages seen in last scan
-	 * and compaction requested per node 
-	 */
-	for (i=0; i<MAX_NUMANODES; i++) {
-		last_bigpages[i] = 0;
-		compaction_requested[i] = 0;
-	}
-
-	/*
 	 * get base page size for the system and convert it to kB
 	 */
 	base_psize = getpagesize()/1024;
-
-	ipath = BUDDYINFO;
-	if ((ifile = fopen(ipath, "r")) == NULL) {
-		log_err("fopen(input file)");
-		bailout(1);
-	}
 
 	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
 
 	one_time_initializations();
 
 	while (1) {
-		unsigned long nr_free[MAX_ORDER];
-		struct frag_info free[MAX_ORDER];
-		int order, nid, retval;
-		unsigned long result = 0;
-		struct timespec spec, spec_after, spec_before;
+		int retval;
 
 		/*
 		 * Start with updated zone watermarks and number of hugepages
@@ -1193,138 +1371,8 @@ main(int argc, char **argv)
 		if (maxgap == 0)
 			rescale_maxwsf();
 
-		/*
-		 * Keep track of time to calculate the compaction and
-		 * reclaim rates
-		 */
-		total_free_pages = 0;
-		/*
-		 * Get time from CLOCK_MONOTONIC_RAW which is not subject
-		 * to perturbations caused by sysadmin or ntp adjustments.
-		 * This ensures reliable calculations for the least square
-		 * fit algorithm.
-		 */
-		clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
+		check_memory_pressure(false);
 
-		while ((retval = get_next_node(ifile, &nid, nr_free)) != 0) {
-			unsigned long total_free;
-
-			/*
-			 * Assemble the fragmented free memory vector:
-			 * the fragmented free memory at a given order is
-			 * the sum of the occupancies at all lower orders.
-			 * Memory is never fragmented at the lowest order
-			 * and so free[0] is overloaded with the total free
-			 * memory.
-			 */
-			total_free = free[0].free_pages = 0;
-			clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
-			for (order = 0; order < MAX_ORDER; order++) {
-				unsigned long free_pages;
-
-				free_pages = nr_free[order] << order;
-				total_free += free_pages;
-				if (order < MAX_ORDER - 1) {
-					free[order + 1].free_pages =
-						free[order].free_pages +
-						free_pages;
-					free[order + 1].msecs = (long long)get_msecs(&spec);
-				}
-			}
-			free[0].free_pages = total_free;
-			free[0].msecs = (long long)get_msecs(&spec);
-
-			/*
-			 * Offer the predictor the fragmented free memory
-			 * vector but do nothing else unless it issues a
-			 * prediction. Accumulate recommendation from
-			 * prediction algorithm across all nodes so we
-			 * adjust watermarks only once per wake up.
-			 */
-			result |= predict(free, page_lsq[nid],
-					high_wmark[nid], low_wmark[nid], nid);
-
-			if (last_bigpages[nid] != 0) {
-				clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
-				time_elapsed = get_msecs(&spec_after) -
-						get_msecs(&spec_before);
-				if (free[MAX_ORDER-1].free_pages >
-						last_bigpages[nid]) {
-					compaction_rate =
-						(free[MAX_ORDER-1].free_pages -
-						last_bigpages[nid]) /
-						time_elapsed;
-					if (compaction_rate)
-						log_info(5, "** compaction rate on node %d is %ld pages/msec",
-						nid, compaction_rate);
-				}
-			}
-			last_bigpages[nid] = free[MAX_ORDER-1].free_pages;
-
-			/*
-			 * Start compaction if requested. There is a cost
-			 * to compaction in the kernel. Avoid issuing
-			 * compaction request twice in a row.
-			 */
-			if (result & MEMPREDICT_COMPACT) {
-				if (!compaction_requested[nid]) {
-					log_info(2, "Triggering compaction on node %d", nid);
-					if (!dry_run) {
-						compact(nid);
-						compaction_requested[nid] = 1;
-						result &= ~MEMPREDICT_COMPACT;
-					}
-				}
-			}
-			/*
-			 * Clear compaction requested flag for the next
-			 * sampling interval
-			 */
-			compaction_requested[nid] = 0;
-			total_free_pages += free[0].free_pages;
-
-			/*
-			 * If all of /proc/buddyinfo has been processed,
-			 * terminate this loop and start the next one
-			 */
-			if (retval == -1)
-				break;
-		}
-
-		if (retval == 0) {
-			log_err("error reading buddyinfo (%s)", strerror(errno));
-			bailout(1);
-		}
-
-
-		/*
-		 * Adjust watermarks if needed. Both MEMPREDICT_RECLAIM
-		 * and MEMPREDICT_LOWER_WMARKS can be set even though it
-		 * seems contradictory. That is because result accumulates
-		 * all prediction results across all nodes. One node may
-		 * have enough free pages or has increasing number of
-		 * free pages while another node may be running low. In
-		 * such cases, MEMPREDICT_RECLAIM takes precedence
-		 */
-		if (result & (MEMPREDICT_RECLAIM | MEMPREDICT_LOWER_WMARKS)) {
-			if (result & MEMPREDICT_RECLAIM)
-				rescale_watermarks(1);
-			else
-				rescale_watermarks(0);
-		}
-
-		reclaimed_pages = no_pages_reclaimed();
-		if (last_reclaimed) {
-			clock_gettime(CLOCK_MONOTONIC_RAW, &spec_after);
-			time_elapsed = get_msecs(&spec_after) - get_msecs(&spec_before);
-
-			reclaim_rate = (reclaimed_pages - last_reclaimed) / time_elapsed;
-			if (reclaim_rate)
-				log_info(5, "** reclamation rate is %ld pages/msec", reclaim_rate);
-		}
-		last_reclaimed = reclaimed_pages;
-
-		result = 0;
 		sleep(periodicity);
 	}
 
