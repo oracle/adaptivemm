@@ -725,7 +725,7 @@ rescale_watermarks(int scale_up)
 
 	if (atoi(scaled_wmark) == scaled_watermark) {
 		if (scaled_watermark == mywsf)
-			log_info(2, "At max WSF already (max WSFF = %u", mywsf);
+			log_info(2, "At max WSF already (max WSF = %u)", mywsf);
 		return;
 	}
 
@@ -1113,7 +1113,8 @@ one_time_initializations()
 #define OPT_GAP		"MAXGAP"
 #define OPT_AGGR	"AGGRESSIVENESS"
 #define OPT_ENB_DENTRY	"ENABLE_NEG_DENTRY_MGMT"
-#define OPT_NEG_DENTRY	"NEG-DENTRY-CAP"
+#define OPT_NEG_DENTRY1	"NEG-DENTRY-CAP"
+#define OPT_NEG_DENTRY2	"NEG_DENTRY_CAP"
 int
 parse_config()
 {
@@ -1193,7 +1194,8 @@ parse_config()
 		}
 		else if (strncmp(token, OPT_ENB_DENTRY, sizeof(OPT_ENB_DENTRY)) == 0)
 			neg_dentry_check_enabled = ((val==0)?false:true);
-		else if (strncmp(token, OPT_NEG_DENTRY, sizeof(OPT_NEG_DENTRY)) == 0) {
+		else if ((strncmp(token, OPT_NEG_DENTRY1, sizeof(OPT_NEG_DENTRY1)) == 0) ||
+			(strncmp(token, OPT_NEG_DENTRY2, sizeof(OPT_NEG_DENTRY2)) == 0)) {
 			/*
 			 * negative dentry memory usage cap is expressed as
 			 * a percentage of total memory on the system. Any
