@@ -1,4 +1,0 @@
-# Enable memoptimizer service since it is essential to managing free
-# memory on the system proactively and reducing memory allocation stalls
-
-enable memoptimizer.service

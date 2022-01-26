@@ -41,7 +41,7 @@
 #include <stdbool.h>
 #include "predict.h"
 
-#define VERSION		"1.5.0"
+#define VERSION		"2.0.0"
 
 /*
  * System files that provide information
@@ -62,8 +62,8 @@
  */
 #define NEG_DENTRY_LIMIT	"/proc/sys/fs/negative-dentry-limit"
 
-#define CONFIG_FILE1		"/etc/sysconfig/memoptimizer"
-#define CONFIG_FILE2		"/etc/default/memoptimizer"
+#define CONFIG_FILE1		"/etc/sysconfig/adaptivemmd"
+#define CONFIG_FILE2		"/etc/default/adaptivemmd"
 
 #define MAX_NUMANODES	1024
 
@@ -1081,7 +1081,7 @@ check_memory_pressure(bool init)
 
 /*
  * one_time_initializations() - Initialize settings that are set once at
- *	memoptimizer startup
+ *	adaptivemmd startup
  *
  */
 void
@@ -1204,7 +1204,7 @@ parse_config()
 			 * negative dentry cacheing, so don't allow that
 			 * either. If a sysadmin wants to disable cacheing,
 			 * they can do it through sysctl tunables separately
-			 * instead to doing it through memoptimizer
+			 * instead to doing it through adaptivemmd
 			 */
 			if (val > MAX_NEGDENTRY)
 				log_err("Bad value for negative dentry cap = %d (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
@@ -1259,7 +1259,7 @@ main(int argc, char **argv)
 	int c, i;
 	int errflag = 0;
 
-	openlog("memoptimizer", LOG_PID, LOG_DAEMON);
+	openlog("adaptivemmd", LOG_PID, LOG_DAEMON);
 	if (parse_config() == 0)
 		bailout(1);
 
@@ -1352,7 +1352,7 @@ main(int argc, char **argv)
 	 */
 	base_psize = getpagesize()/1024;
 
-	pr_info("Memoptimizer "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
+	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
 
 	one_time_initializations();
 

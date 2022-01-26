@@ -1,21 +1,21 @@
 CC=gcc
 CFLAGS=-I. -Wall -g
 LDFLAGS=
-OBJS=predict.o memoptimizer.o
+OBJS=predict.o adaptivemmd.o
 
-.DEFAULT_GOAL := memoptimizer
+.DEFAULT_GOAL := adaptivemmd
 
-all: memoptimizer
+all: adaptivemmd
 
 predict.o: predict.c predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-memoptimizer.o: memoptimizer.c predict.h
+adaptivemmd.o: adaptivemmd.c predict.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-memoptimizer: $(OBJS)
+adaptivemmd: $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f $(OBJS) memoptimizer cscope.*
+	rm -f $(OBJS) adaptivemmd cscope.*
 

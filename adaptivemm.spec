@@ -1,9 +1,10 @@
-Name: memoptimizer
-Version: 1.5.0
+Name: adaptivemm
+Version: 2.0.0
 Release: 1%{?dist}
 License: GPLv2
-Summary: Free memory optimizer
-URL: https://github.com/oracle/memoptimizer
+Obsoletes: memoptimizer
+Summary: Adaptive free memory management
+URL: https://github.com/oracle/adaptivemm
 Source0: %{name}-%{version}.tar.gz
 
 BuildRequires: glib2-devel
@@ -33,31 +34,36 @@ make %{?_smp_mflags}
 
 %install
 
-install -D -m 755 memoptimizer %{buildroot}%{_sbindir}/memoptimizer
-install -D -m 644 memoptimizer.service %{buildroot}%{_unitdir}/memoptimizer.service
-install -D -m 644 50-memoptimizer.preset %{buildroot}%{_presetdir}/50-memoptimizer.preset
-install -D -m 644 memoptimizer.cfg %{buildroot}%{_sysconfdir}/sysconfig/memoptimizer
-install -D -m 644 memoptimizer.8 %{buildroot}%{_mandir}/man8/memoptimizer.8
+install -D -m 755 adaptivemmd %{buildroot}%{_sbindir}/adaptivemmd
+install -D -m 644 adaptivemmd.service %{buildroot}%{_unitdir}/adaptivemmd.service
+install -D -m 644 50-adaptivemm.preset %{buildroot}%{_presetdir}/50-adaptivemm.preset
+install -D -m 644 adaptivemmd.cfg %{buildroot}%{_sysconfdir}/sysconfig/adaptivemmd
+install -D -m 644 adaptivemmd.8 %{buildroot}%{_mandir}/man8/adaptivemmd.8
 
 %post
-%systemd_post memoptimizer.service
+%systemd_post adaptivemmd.service
 
 %postun
-%systemd_postun_with_restart memoptimizer.service
+%systemd_postun_with_restart adaptivemmd.service
 
 %preun
-%systemd_preun memoptimizer.service
+%systemd_preun adaptivemmd.service
 
 %files
 %license LICENSE.txt
 %doc README.md CONTRIBUTING.md SECURITY.md
-%attr(0640,root,root) %config(noreplace) /etc/sysconfig/memoptimizer
-%{_sbindir}/memoptimizer
-%{_mandir}/man8/memoptimizer.8*
-%{_unitdir}/memoptimizer.service
-%{_presetdir}/50-memoptimizer.preset
+%attr(0640,root,root) %config(noreplace) /etc/sysconfig/adaptivemmd
+%{_sbindir}/adaptivemmd
+%{_mandir}/man8/adaptivemmd.8*
+%{_unitdir}/adaptivemmd.service
+%{_presetdir}/50-adaptivemm.preset
 
 %changelog
+* Tue Jan 25 2022 Khalid Aziz <khalid.aziz@oracle.com> - 2.0.0-1
+- Changing name to adaptivemmd from memoptimizer
+- Change a config option name to stop systemd from complaining
+  about the name format
+
 * Thu Jul 29 2021 Khalid Aziz <khalid.aziz@oracle.com> - 1.5.0-1
 - Add support for one time initializations at start up
 - Add support for tunables value updates upon change

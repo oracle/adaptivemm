@@ -1,4 +1,4 @@
-## Contributing to memoptimizer
+## Contributing to adaptivemm
 
 We welcome your contributions! There are multiple ways to contribute.
 
@@ -25,7 +25,7 @@ Git has a `-s` command line option to do this automatically.
 `git commit -s -m 'This is my commit message'`
 
 
-To contribute to this project, obtain source code either from the source package or from the public git repository maintained at https://github.com/oracle/memoptimizer See the `README.md` file for details on how to build and verify your changes.
+To contribute to this project, obtain source code either from the source package or from the public git repository maintained at https://github.com/oracle/adaptivemm See the `README.md` file for details on how to build and verify your changes.
 
 
 ### Pull request process

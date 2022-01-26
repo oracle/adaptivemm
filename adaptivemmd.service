@@ -1,12 +1,12 @@
 [Unit]
-Description=Memory optimizer daemon
-Documentation=man:memoptimizer(8)
+Description=Adaptive free memory optimizer daemon
+Documentation=man:adaptivemmd(8)
 After=systemd-sysctl.service local-fs.target syslog.target
 
 [Service]
 Type=forking
-EnvironmentFile=-/etc/sysconfig/memoptimizer
-ExecStart=/usr/sbin/memoptimizer
+EnvironmentFile=-/etc/sysconfig/adaptivemmd
+ExecStart=/usr/sbin/adaptivemmd
 KillMode=control-group
 Restart=on-failure
 RestartSec=10s
