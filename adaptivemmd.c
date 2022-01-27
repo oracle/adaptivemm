@@ -39,10 +39,12 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <signal.h>
 #include "predict.h"
 
 #define VERSION		"2.0.0"
 
+#define LOCKFILE	"/var/run/adaptivemmd.pid"
 /*
  * System files that provide information
  */
@@ -77,7 +79,7 @@ unsigned long total_free_pages, total_cache_pages, total_hugepages, base_psize;
 long compaction_rate, reclaim_rate;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
-int debug_mode, verbose;
+int debug_mode, verbose, del_lock = 0;
 unsigned long maxgap;
 int aggressiveness = 2;
 int periodicity;
@@ -107,11 +109,25 @@ unsigned int mywsf;
 int max_compaction_order = MAX_ORDER - 4;
 
 
+/*
+ * Clean up before exiting
+ */
 void
 bailout(int retval)
 {
+	if (del_lock)
+		unlink(LOCKFILE);
 	closelog();
 	exit(retval);
+}
+
+/*
+ * Signal handler to ensure cleanup before exiting
+ */
+void
+mysig(int signo)
+{
+	bailout(0);
 }
 
 void
@@ -1253,11 +1269,14 @@ help_msg(char *progname)
 		    progname, VERSION, CONFIG_FILE1, CONFIG_FILE2);
 }
 
+#define TMPCHARBUFSIZE	128
+
 int
 main(int argc, char **argv)
 {
-	int c, i;
+	int c, i, lockfd;
 	int errflag = 0;
+	char tmpbuf[TMPCHARBUFSIZE];
 
 	openlog("adaptivemmd", LOG_PID, LOG_DAEMON);
 	if (parse_config() == 0)
@@ -1295,12 +1314,34 @@ main(int argc, char **argv)
 		}
 	}
 
+	/* Handle signals to ensure proper cleanup */
+	signal(SIGTERM, mysig);
+	signal(SIGHUP, mysig);
+
+	/* Check if an instance is running already */
+	lockfd = open(LOCKFILE, O_RDWR|O_CREAT|O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	if (lockfd < 0) {
+		if (errno == EEXIST)
+			log_err("Lockfile %s exists. Another daemon may be running. Exiting now", LOCKFILE);
+		else
+			log_err("Failed to open lockfile %s", LOCKFILE);
+		bailout(1);
+	} else {
+		del_lock = 1;
+		ftruncate(lockfd, 0);
+	}
+
 	/* Become a daemon unless -d was specified */
 	if (!debug_mode)
 		if (daemon(0, 0) != 0) {
 			log_err("Failed to become daemon. %s", strerror(errno));
 			bailout(1);
 		}
+
+	snprintf(tmpbuf, TMPCHARBUFSIZE, "%ld\n", (long)getpid());
+	if (write(lockfd, (const void *)tmpbuf, strlen(tmpbuf)) < 0)
+		log_err("Failed to write PID to lockfile %s", LOCKFILE);
+	close(lockfd);
 
 	if (errflag) {
 		help_msg(argv[0]);
