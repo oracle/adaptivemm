@@ -65,7 +65,7 @@ Normal (default), 3 = High. Aggressiveness level dictates how often
 adaptivemm will sample system state and how aggressively it will
 tune watermark scale factor.
 
-In simplest form, mempoptimizer can be started with:
+In simplest form, adaptivemmd can be started with:
 
 	$ adaptivemmd
 
@@ -77,7 +77,7 @@ If a maximum gap allowed between low and high watermarks as
 adaptivemm tunes watermarks, is desired, it can be specified with
 a -m flag where the argument is number of GB:
 
-	$ mempotimizer -m 10
+	$ adaptivemmd -m 10
 
 ### Developer Resources
 
