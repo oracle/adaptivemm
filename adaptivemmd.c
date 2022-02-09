@@ -35,6 +35,7 @@
 #include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -42,7 +43,7 @@
 #include <signal.h>
 #include "predict.h"
 
-#define VERSION		"2.0.0"
+#define VERSION		"2.0.1"
 
 #define LOCKFILE	"/var/run/adaptivemmd.pid"
 /*
@@ -82,7 +83,7 @@ int dry_run;
 int debug_mode, verbose, del_lock = 0;
 unsigned long maxgap;
 int aggressiveness = 2;
-int periodicity;
+int periodicity, skip_dmazone;
 int neg_dentry_pct = 15;	/* default is 1.5% */
 
 /* Flags to enable various modules */
@@ -289,8 +290,8 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 			break;
 		}
 
-		/* Skip DMA zone */
-		if (strncmp(zone, "DMA", FLDLEN) == 0)
+		/* Skip DMA zone if needed  */
+		if (skip_dmazone && strncmp(zone, "DMA", FLDLEN) == 0)
 			continue;
 
 		/* Add up free page info for each order */
@@ -402,9 +403,15 @@ update_zone_watermarks()
 
 			/*
 			 * Add up watermarks and managed pages for all
-			 * zones for the node except DMA zone.
+			 * zones. x86 and x86-64 reserve memory in DMA
+			 * zone for use by I/O primarily. This memory should
+			 * not be taken into account for free memory
+			 * management. ARM on the other hand maps the
+			 * first 1G of memory into DMA zone and then
+			 * continues mapping into DMA32 and Normal zones.
+			 * Ignore pages in DMA zone for x86 and x86-64.
 			 */
-			if (strncmp("DMA", zone_name, FLDLEN) != 0) {
+			if (!skip_dmazone || (strncmp("DMA", zone_name, FLDLEN) != 0)) {
 				/*
 				 * We found the normal zone. Now look for
 				 * line "pages free"
@@ -1277,6 +1284,7 @@ main(int argc, char **argv)
 	int c, i, lockfd;
 	int errflag = 0;
 	char tmpbuf[TMPCHARBUFSIZE];
+	struct utsname name;
 
 	openlog("adaptivemmd", LOG_PID, LOG_DAEMON);
 	if (parse_config() == 0)
@@ -1350,6 +1358,17 @@ main(int argc, char **argv)
 
 	if (!check_permissions())
 		bailout(1);
+
+	/*
+	 * Determine the architecture we are running on and decide if "DMA"
+	 * zone should be skipped in total memory calculations
+	 */
+	uname(&name);
+	if (strcmp(name.machine, "x86_64") == 0 ||
+		strcmp(name.machine, "i686") == 0)
+		skip_dmazone = 1;
+	else
+		skip_dmazone = 0;
 
 	/*
 	 * Set up values for parameters based upon aggressiveness
