@@ -945,7 +945,8 @@ check_memory_pressure(bool init)
 	unsigned long time_elapsed, reclaimed_pages;
 	unsigned long result = 0;
 	int i, order, nid, retval;
-	struct timespec spec, spec_after, spec_before;
+	struct timespec spec, spec_after;
+	static struct timespec spec_before;
 	char *ipath;
 
 	/*
@@ -979,14 +980,6 @@ check_memory_pressure(bool init)
 	 * reclaim rates
 	 */
 	total_free_pages = 0;
-
-	/*
-	 * Get time from CLOCK_MONOTONIC_RAW which is not subject
-	 * to perturbations caused by sysadmin or ntp adjustments.
-	 * This ensures reliable calculations for the least square
-	 * fit algorithm.
-	 */
-	clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
 
 	while ((retval = get_next_node(ifile, &nid, nr_free)) != 0) {
 		unsigned long total_free;
@@ -1102,6 +1095,14 @@ check_memory_pressure(bool init)
 			log_info(5, "** reclamation rate is %ld pages/msec", reclaim_rate);
 	}
 	last_reclaimed = reclaimed_pages;
+
+	/*
+	 * Get time from CLOCK_MONOTONIC_RAW which is not subject
+	 * to perturbations caused by sysadmin or ntp adjustments.
+	 * This ensures reliable calculations for the least square
+	 * fit algorithm.
+	 */
+	clock_gettime(CLOCK_MONOTONIC_RAW, &spec_before);
 }
 
 /*
