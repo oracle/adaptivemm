@@ -336,6 +336,7 @@ update_hugepages()
 						sscanf(ep->d_name, "hugepages-%ldkB", &psize);
 						newhpages += pages * psize / base_psize;
 					}
+					fclose(fp);
 				}
 			}
 		}
@@ -448,6 +449,7 @@ update_zone_watermarks()
 	}
 
 out:
+	free(line);
 	fclose(fp);
 	return 0;
 }
