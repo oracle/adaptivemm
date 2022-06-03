@@ -381,7 +381,7 @@ int
 update_zone_watermarks()
 {
 	FILE *fp = NULL;
-	size_t len = 100;
+	size_t len = 256;
 	char *line = malloc(len);
 	int current_node = -1;
 
@@ -422,7 +422,7 @@ update_zone_watermarks()
 
 				while (1) {
 					unsigned long val;
-					char name[20];
+					char name[256];
 
 					if (fgets(line, len, fp) == NULL)
 						goto out;
@@ -618,7 +618,7 @@ rescale_watermarks(int scale_up)
 	}
 	else {
 		/*
-		 * Determine how urgent the situation is regarding 
+		 * Determine how urgent the situation is regarding
 		 * remaining free pages. If free pages are already
 		 * below high watermark, check if there are enough
 		 * pages potentially available in buffer cache.
@@ -1202,7 +1202,7 @@ parse_config()
 		val = strtoul(&buf[i+1], NULL, 0);
 
 		if (strncmp(token, OPT_V, sizeof(OPT_V)) == 0) {
-			if(val <= MAX_VERBOSE) 
+			if(val <= MAX_VERBOSE)
 				verbose = val;
 			else
 				log_err("Verbosity value is greater than %d. Proceeding with defaults", MAX_VERBOSE);
