@@ -789,7 +789,7 @@ static int
 check_permissions(void)
 {
 	int fd;
-	char tmpstr[40];
+	char tmpstr[40] = {0};
 
 	/*
 	 * Make sure running kernel supports watermark_scale_factor file
