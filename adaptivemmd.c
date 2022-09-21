@@ -802,6 +802,7 @@ check_permissions(void)
 	/* Can we write to this file */
 	if (read(fd, tmpstr, sizeof(tmpstr)) < 0) {
 		log_err("Can not read "RESCALE_WMARK" (%s)", strerror(errno));
+		close(fd);
 		return 0;
 	}
 	close(fd);
@@ -812,6 +813,7 @@ check_permissions(void)
 
 	if (write(fd, tmpstr, strlen(tmpstr)) < 0) {
 		log_err("Can not write to "RESCALE_WMARK" (%s)", strerror(errno));
+		close(fd);
 		return 0;
 	}
 	close(fd);
