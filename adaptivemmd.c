@@ -377,7 +377,8 @@ update_hugepages()
 #define ZONE_HIGH	"high"
 #define ZONE_MNGD	"managed"
 #define ZONE_PGST	"pagesets"
-int
+
+void
 update_zone_watermarks()
 {
 	FILE *fp = NULL;
@@ -387,13 +388,16 @@ update_zone_watermarks()
 
 	fp = fopen(ZONEINFO, "r");
 	if (!fp)
-		return 0;
+		goto out_free;
 
 	while ((fgets(line, len, fp) != NULL)) {
 		if (strncmp(line, "Node", 4) == 0) {
 			char node[FLDLEN], zone[FLDLEN], zone_name[FLDLEN];
 			int nid;
-			unsigned long min, low, high, managed;
+			unsigned long min = 0;
+			unsigned long low = 0;
+			unsigned long high = 0;
+			unsigned long managed = 0;
 
 			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
 			if ((current_node == -1) || (current_node != nid)) {
@@ -413,10 +417,6 @@ update_zone_watermarks()
 			 * Ignore pages in DMA zone for x86 and x86-64.
 			 */
 			if (!skip_dmazone || (strncmp("DMA", zone_name, FLDLEN) != 0)) {
-				/*
-				 * We found the normal zone. Now look for
-				 * line "pages free"
-				 */
 				if (fgets(line, len, fp) == NULL)
 					goto out;
 
@@ -449,9 +449,9 @@ update_zone_watermarks()
 	}
 
 out:
-	free(line);
 	fclose(fp);
-	return 0;
+out_free:
+	free(line);
 }
 
 /*
