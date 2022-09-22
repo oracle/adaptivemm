@@ -511,14 +511,15 @@ no_pages_reclaimed()
 	FILE *fp = NULL;
 	size_t len = 100;
 	char *line = malloc(len);
-	unsigned long val, reclaimed;
+	unsigned long val = 0;
+	unsigned long reclaimed = 0;
 	char desc[100];
 
 	fp = fopen(VMSTAT, "r");
 	if (!fp)
-		return 0;
+		goto out;
 
-	total_cache_pages = reclaimed = 0;
+	total_cache_pages = 0;
 	while ((fgets(line, len, fp) != NULL)) {
 		sscanf(line, "%s %lu\n", desc, &val );
 		if (strcmp(desc, "pgsteal_kswapd") == 0)
@@ -533,8 +534,9 @@ no_pages_reclaimed()
 			total_cache_pages += val;
 	}
 
-	free(line);
 	fclose(fp);
+out:
+	free(line);
 	return reclaimed;
 }
 
