@@ -1237,7 +1237,7 @@ parse_config()
 			 * instead to doing it through adaptivemmd
 			 */
 			if (val > MAX_NEGDENTRY)
-				log_err("Bad value for negative dentry cap = %d (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
+				log_err("Bad value for negative dentry cap = %ld (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
 			else if (val < 1)
 				neg_dentry_pct = 1;
 			else
@@ -1419,7 +1419,7 @@ main(int argc, char **argv)
 	 */
 	base_psize = getpagesize()/1024;
 
-	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
+	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%lu)", verbose, aggressiveness, maxgap);
 
 	one_time_initializations();
 
