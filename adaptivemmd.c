@@ -758,7 +758,7 @@ rescale_watermarks(int scale_up)
 
 	log_info(1, "Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
 	if (dry_run)
-		goto out;
+		return;
 
 	log_info(1, "New watermark scale factor = %ld", scaled_watermark);
 	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
