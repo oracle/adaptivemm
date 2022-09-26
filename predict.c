@@ -220,11 +220,11 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		if (frag_vec[0].free_pages <= high_wmark) {
 			retval |= MEMPREDICT_RECLAIM;
 			log_info(2, "Reclamation recommended due to free pages being below high watermark");
-			log_info(2, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
+			log_info(2, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, llabs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
 		}
 		else {
 			time_taken = (frag_vec[0].free_pages - high_wmark)
-					/ abs(m[0]);
+					/ llabs(m[0]);
 
 			/*
 			 * Time to reclaim frag_vec[0].free_pages - high_wmark
@@ -244,7 +244,7 @@ predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 			 */
 			if (time_taken <= (3*time_to_catchup)) {
 				log_info(3, "Reclamation recommended due to high memory consumption rate");
-				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, abs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
+				log_info(3, "Consumption rate on node %d=%ld pages/msec, reclaim rate is %ld pages/msec, Free pages=%ld, low wmark=%ld, high wmark=%ld", nid, llabs(m[0]), reclaim_rate, frag_vec[0].free_pages, low_wmark, high_wmark);
 				log_info(3, "Time to below high watermark= %ld msec, time to catch up=%ld msec", time_taken, time_to_catchup);
 				retval |= MEMPREDICT_RECLAIM;
 			}

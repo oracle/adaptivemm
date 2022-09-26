@@ -76,8 +76,8 @@
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
-unsigned long total_free_pages, total_cache_pages, total_hugepages, base_psize;
-long compaction_rate, reclaim_rate;
+unsigned long total_free_pages, total_cache_pages, base_psize;
+long compaction_rate, reclaim_rate, total_hugepages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
 int debug_mode, verbose, del_lock = 0;
@@ -315,7 +315,7 @@ update_hugepages()
 {
 	DIR *dp;
 	struct dirent *ep;
-	unsigned long newhpages = 0;
+	long newhpages = 0;
 	int rc = -1;
 
 	dp = opendir(HUGEPAGESINFO);
@@ -343,7 +343,7 @@ update_hugepages()
 		if (newhpages) {
 			unsigned long tmp;
 
-			tmp = abs(newhpages - total_hugepages);
+			tmp = llabs(newhpages - total_hugepages);
 			/*
 			 * If number of hugepages changes from 0 to a
 			 * positive number, percentage calculation will
