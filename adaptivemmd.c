@@ -376,7 +376,7 @@ update_hugepages()
 #define ZONE_LOW	"low"
 #define ZONE_HIGH	"high"
 #define ZONE_MNGD	"managed"
-#define ZONE_PGST	"pagesets"
+#define ZONE_PROT	"protection:"
 
 void
 update_zone_watermarks()
@@ -436,7 +436,7 @@ update_zone_watermarks()
 						high = val;
 					if (strncmp(name, ZONE_MNGD, sizeof(ZONE_MNGD)) == 0)
 						managed = val;
-					if (strncmp(name, ZONE_PGST, sizeof(ZONE_PGST)) == 0)
+					if (strncmp(name, ZONE_PROT, sizeof(ZONE_PROT)) == 0)
 						break;
 				}
 
