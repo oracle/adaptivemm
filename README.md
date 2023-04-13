@@ -133,7 +133,16 @@ Copy adaptivemmd binary to a directory appropriate for your system, typically `/
 
 Source code includes documentation in form of a man page. This man page is contained in file `adaptivemmd.8`. If adaptivemm was installed as a package on your system, man page should be available as standard man page with `man adaptivemmd` command. If adaptivemm was not installed as a package, `adaptivemmd.8` file can be displayed as man page with `nroff -man adaptivemmd.8`.
 
+## Contributing
 
-### Contributing to adaptivemm project
+This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
 
-adaptivemm source code is maintained in a public git repository. Contributions to the project can be made by either submitting a patch to project admin or by sending a git pull request to project admin. All contributions must be made under GNU Public License version 2. For further details see `CONTRIBUTING.md` file in the source code.
+## Security
+
+Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process
+
+## License
+
+Copyright (c) 2023 Oracle and/or its affiliates.
+
+Released under the GNU Public License version 2
