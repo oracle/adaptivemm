@@ -1,5 +1,5 @@
 # adaptivemm
-## a userspace daemon for proactive free memory management
+## A userspace daemon for proactive free memory management
 
 ## Overview
 
