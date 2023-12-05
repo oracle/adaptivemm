@@ -41,9 +41,10 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <linux/kernel-page-flags.h>
 #include "predict.h"
 
-#define VERSION		"2.0.1"
+#define VERSION		"2.1.0"
 
 #define LOCKFILE	"/var/run/adaptivemmd.pid"
 /*
@@ -52,6 +53,10 @@
 #define	BUDDYINFO		"/proc/buddyinfo"
 #define ZONEINFO		"/proc/zoneinfo"
 #define VMSTAT			"/proc/vmstat"
+#define MEMINFO			"/proc/meminfo"
+#define KPAGECOUNT		"/proc/kpagecount"
+#define KPAGEFLAGS		"/proc/kpageflags"
+#define MODULES			"/proc/modules"
 #define HUGEPAGESINFO		"/sys/kernel/mm/hugepages"
 
 /*
@@ -65,14 +70,26 @@
  */
 #define NEG_DENTRY_LIMIT	"/proc/sys/fs/negative-dentry-limit"
 
+/*
+ * Possible locations for configuration files
+ */
 #define CONFIG_FILE1		"/etc/sysconfig/adaptivemmd"
 #define CONFIG_FILE2		"/etc/default/adaptivemmd"
 
 #define MAX_NUMANODES	1024
 
-#define MAX_VERBOSE 5
-#define MAX_AGGRESSIVE 3
+#define MAX_VERBOSE	5
+#define MAX_AGGRESSIVE	3
 #define MAX_NEGDENTRY	100
+
+/*
+ * Number of consecutive samples showing growth in unaccounted memory
+ * that will trigger memory leak warning
+ */
+#define UNACCT_MEM_GRTH_MAX	10
+
+/* Minimum % change in meminfo numbers to trigger warnings */
+#define MEM_TRIGGER_DELTA	10
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
@@ -89,6 +106,7 @@ int neg_dentry_pct = 15;	/* default is 1.5% */
 /* Flags to enable various modules */
 bool memory_pressure_check_enabled = true;
 bool neg_dentry_check_enabled = true;
+bool memleak_check_enabled = true;
 
 /*
  * Highest value to set watermark_scale_factor to. This value is tied
@@ -854,7 +872,7 @@ check_permissions(void)
  *	0.1%
  */
 void
-update_neg_dentry()
+update_neg_dentry(bool init)
 {
 	int fd;
 
@@ -905,6 +923,495 @@ update_neg_dentry()
 }
 
 /*
+ * get_unmapped_pages()- count number of unmapped pages reported in
+ *	/proc/kpagecount
+ *
+ * /proc/kpagecount reports a current mapcount as a 64-bit integer for
+ * each PFN on the system. It includes PFN that may not have a physical
+ * page backing them. /proc/kpageflags reports current flags for each
+ * PFN including flag for whether a physical page is present at that
+ * PFN. This flag can be used to identify PFNs that do not have a
+ * backing pahysical page
+ */
+long
+get_unmapped_pages()
+{
+#define BATCHSIZE	8192
+	int fd1, fd2;
+	long pagecnt[BATCHSIZE/sizeof(long)];
+	unsigned long pageflg[BATCHSIZE/sizeof(long)];
+	ssize_t inbytes1, inbytes2;
+	unsigned long count, unmapped_pages = 0;
+
+	if ((fd1 = open(KPAGECOUNT, O_RDONLY)) == -1) {
+		log_err("Error opening kpagecount");
+		return(-1);
+	}
+
+	if ((fd2 = open(KPAGEFLAGS, O_RDONLY)) == -1) {
+		log_err("Error opening kpageflags");
+		return(-1);
+	}
+
+	inbytes1 = read(fd1, pagecnt, BATCHSIZE);
+	inbytes2 = read(fd2, pageflg, BATCHSIZE);
+	count = inbytes1/sizeof(long);
+	while ((inbytes1 > 0) && (inbytes2 > 0)) {
+		unsigned long i;
+
+		i = 0;
+		while (i < count) {
+			/*
+			 * Skip PFN not backed by physical page
+			 */
+			if ((pageflg[i]>>KPF_NOPAGE) & 1)
+				goto nextloop;
+			if ((pageflg[i]>>KPF_HWPOISON) & 1)
+				goto nextloop;
+			if ((pageflg[i]>>KPF_OFFLINE) & 1)
+				goto nextloop;
+			if ((pageflg[i]>>KPF_SLAB) & 1)
+				goto nextloop;
+			if ((pageflg[i]>>KPF_BUDDY) & 1)
+				goto nextloop;
+			if ((pageflg[i]>>KPF_PGTABLE) & 1)
+				goto nextloop;
+
+			/*
+			 * Pages not mapped in are free unless
+			 * they are reserved like hugetlb pages
+			 */
+			if ((pagecnt[i] == 0) &&
+				!((pageflg[i]>>KPF_HUGE) & 1))
+				unmapped_pages++;
+
+nextloop:
+			i++;
+		}
+		inbytes1 = read(fd2, pageflg, BATCHSIZE);
+		inbytes2 = read(fd1, pagecnt, BATCHSIZE);
+		count = inbytes2/sizeof(long);
+	}
+
+	if ((inbytes1 < 0) || (inbytes2 < 0)) {
+		if (inbytes1 < 0)
+			log_err("Error reading kpageflagst");
+		else
+			log_err("Error reading kpagecount");
+		close(fd1);
+		close(fd2);
+		return(-1);
+	}
+
+	close(fd1);
+	close(fd2);
+	return(unmapped_pages);
+}
+
+/*
+ * pr_meminfo() - log /proc/meminfo contents
+ */
+void
+pr_meminfo(int level)
+{
+	FILE *fp = NULL;
+	char line[LINE_MAX];
+
+	fp = fopen(MEMINFO, "r");
+	if (!fp)
+		return;
+
+	while ((fgets(line, sizeof(line), fp) != NULL)) {
+		log_info(level, "%s", line);
+	}
+
+	fclose(fp);
+
+}
+
+enum memdata_items {
+	MEMAVAIL,
+	BUFFERS,
+	CACHED,
+	SWPCACHED,
+	UNEVICTABLE,
+	MLOCKED,
+	ANONPAGES,
+	MAPPED,
+	SHMEM,
+	KRECLAIMABLE,
+	SLAB,
+	SUNRECLAIM,
+	KSTACK,
+	PGTABLE,
+	SECPGTABLE,
+	VMALLOCUSED,
+	CMA,
+	NR_MEMDATA_ITEMS
+};
+
+char * const memdata_item_name[NR_MEMDATA_ITEMS] = {
+	"MemAvailable",
+	"Buffers",
+	"Cached",
+	"SwapCached",
+	"Unevicatble",
+	"Mlocked",
+	"AnonPages",
+	"Mapped",
+	"Shmem",
+	"Kreclaimable",
+	"Slab",
+	"Sunreclaim",
+	"KernelStack",
+	"PageTables",
+	"SecPageTables",
+	"VmallocUsed",
+	"CmaTotal"
+};
+
+/*
+ * cmp_meminfo() - Compare two instances of meminfo data and print the ones
+ *		that have changed considerably
+ */
+void
+cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
+{
+	int i;
+	unsigned long delta;
+
+	for (i=0; i<NR_MEMDATA_ITEMS; i++) {
+		delta = abs(pr_memdata[i] - memdata[i]);
+		if (delta == 0)
+			continue;
+
+		/* Is the change greater than warning trigger level */
+		if (delta > (pr_memdata[i] * (MEM_TRIGGER_DELTA/100)))
+			log_info(level, "%s %s by more than %d (previous = %lu K, current = %lu K)\n", memdata_item_name[i], (pr_memdata[i] < memdata[i] ? "grew":"decreased"), MEM_TRIGGER_DELTA, pr_memdata[i], memdata[i]);
+	}
+}
+
+/*
+ * check_memory_leak() - Check for potential memory leak
+ *
+ * Compute the total memory in use currently by adding up various fields
+ * in /proc/meminfo and current free memory. Any difference between this
+ * number and total memory is a potential memory leak if the delta keeps
+ * increasing.
+ *
+ * Tricky part here is accounting for all memory in use legitimately.
+ * Use the following formula with values from /proc/meminfo to compute
+ * memory accounted for:
+ *
+ * mem_good =	AnonPages +
+ *		Buffers +
+ *		Cached +
+ *		CmaTotal +
+ *		KReclaimable +
+ *		KernelStack +
+ *		PageTables +
+ *		SwapCached +
+ *		SUnreclaim +
+ *		SecPageTables +
+ *		Unevictable +
+ *		MemFree +
+ *		hugepages (computed by update_hugepages)
+ *
+ * Note: Active(file) and Inactive(file) memory is accounted for in Cached.
+ *
+ * Now monitor the delta (MemTotal - mem_good) and if the delta
+ * keeps going up, there is a potential memory leak. To account for
+ * memory used by kernel text, kernel modules and firmware, compute
+ * this delta on first run and mark that as baseline. This baseline
+ * can be updated if (MemTotal - mem_good) drops below previous
+ * baseline.
+ */
+void
+check_memory_leak(bool init)
+{
+	static unsigned long base_mem, mem_remain, gr_count, prv_free;
+	static unsigned long pr_memdata[NR_MEMDATA_ITEMS];
+	unsigned long memdata[NR_MEMDATA_ITEMS];
+	unsigned long i, mem_acctd;
+	unsigned long total_managed = 0;
+	long unmapped_pages;
+	FILE *fp = NULL;
+	char line[LINE_MAX];
+	unsigned long val, inuse_mem, freemem, unacct_mem, mem_total;
+	char desc[LINE_MAX];
+
+	/*
+	 * bail out if this module is not enabled
+	 */
+	if (!memleak_check_enabled)
+		return;
+
+	for (i = 0; i < MAX_NUMANODES; i++)
+		total_managed += managed_pages[i];
+	for (i = 0; i < NR_MEMDATA_ITEMS; i++)
+		memdata[i] = 0;
+
+	/*
+	 * Now read meminfo file to get current memory info
+	 */
+	fp = fopen(MEMINFO, "r");
+	if (!fp)
+		return;
+
+	/*
+	 * Compute amount of memory accounted for since it is clearly in
+	 * use.
+	 *
+	 * in use memory = Buffers + Cached + Mlocked +
+	 *			Shmem + KReclaimable + Slab + KernelStack +
+	 *			PageTables + SecPageTables + CmaTotal
+	 */
+	inuse_mem = 0;
+	while ((fgets(line, sizeof(line), fp) != NULL)) {
+		sscanf(line, "%s %lu\n", desc, &val );
+		switch (desc[0]) {
+		case 'A':
+			if (strcmp(desc, "AnonPages:") == 0) {
+				inuse_mem += val;
+				memdata[ANONPAGES] = val;
+			}
+			break;
+
+		case 'B':
+			if (strcmp(desc, "Buffers:") == 0) {
+				inuse_mem += val;
+				memdata[BUFFERS] = val;
+			}
+			break;
+
+		case 'C':
+			if (strcmp(desc, "Cached:") == 0) {
+				inuse_mem += val;
+				memdata[CACHED] = val;
+			} else if (strcmp(desc, "CmaTotal:") == 0) {
+				inuse_mem += val;
+				memdata[CMA] = val;
+			}
+			break;
+
+		case 'K':
+			if (strcmp(desc, "KReclaimable:") == 0) {
+				inuse_mem += val;
+				memdata[KRECLAIMABLE] = val;
+			} else if (strcmp(desc, "KernelStack:") == 0) {
+				inuse_mem += val;
+				memdata[KSTACK] = val;
+			}
+			break;
+
+		case 'M':
+			if (strcmp(desc, "MemFree:") == 0)
+				freemem = val;
+			else if (strcmp(desc, "MemTotal:") == 0)
+				mem_total = val;
+			else if (strcmp(desc, "MemAvailable:") == 0)
+				memdata[MEMAVAIL] = val;
+			else if (strcmp(desc, "Mlocked:") == 0)
+				memdata[MLOCKED] = val;
+			else if (strcmp(desc, "Mapped:") == 0)
+				memdata[MAPPED] = val;
+			break;
+
+		case 'P':
+			if (strcmp(desc, "PageTables:") == 0) {
+				inuse_mem += val;
+				memdata[PGTABLE] = val;
+			}
+			break;
+
+		case 'S':
+			if (strcmp(desc, "SwapCached:") == 0) {
+				inuse_mem += val;
+				memdata[SWPCACHED] = val;
+			} else if (strcmp(desc, "SUnreclaim:") == 0) {
+				inuse_mem += val;
+				memdata[SUNRECLAIM] = val;
+			} else if (strcmp(desc, "SecPageTables:") == 0) {
+				inuse_mem += val;
+				memdata[SECPGTABLE] = val;
+			} else if (strcmp(desc, "Shmem:") == 0) {
+				memdata[SHMEM] = val;
+			} else if (strcmp(desc, "Slab:") == 0) {
+				memdata[SLAB] = val;
+			}
+			break;
+
+		case 'U':
+			if (strcmp(desc, "Unevictable:") == 0) {
+				inuse_mem += val;
+				memdata[UNEVICTABLE] = val;
+			}
+			break;
+
+		case 'V':
+			if (strcmp(desc, "VmallocUsed:") == 0)
+				memdata[VMALLOCUSED] = val;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * Data in meminfo is in kB while we are tracking memory in pages.
+	 * Convert data computed from meminfo to pages
+	 */
+	inuse_mem = inuse_mem/base_psize;
+	freemem = freemem/base_psize;
+	mem_total = mem_total/base_psize;
+	memdata[MEMAVAIL] = memdata[MEMAVAIL]/base_psize;
+	fclose(fp);
+
+	/*
+	 * Sum of memory in use, memory allocated to hugepages and free
+	 * memory is the amount of memory we can account for from
+	 * /proc/meminfo
+	 */
+	mem_acctd = freemem + total_hugepages + inuse_mem;
+	if (init) {
+		/*
+		 * The difference between total memory and memory
+		 * accounted for is likely to be memory in use by kernel
+		 * and kernel modules plus memory reserved by kernel,
+		 * especially if this daemon was started when machine
+		 * rebooted. Record this difference as base memory usage
+		 * by the system
+		 */
+		base_mem = total_managed - mem_acctd;
+		prv_free = freemem;
+		for (i = 0; i < NR_MEMDATA_ITEMS; i++)
+			pr_memdata[i] = memdata[i];
+		log_info(5, "Base memory consumption set to %lu K", (base_mem * base_psize));
+		goto out;
+	}
+
+	unmapped_pages = get_unmapped_pages();
+	if (unmapped_pages < 0) {
+		log_err("Failed to read unmapped pages count");
+		unmapped_pages = 0;
+	}
+
+	/*
+	 * Base memory consumption is the minimum amount of memory system
+	 * uses during normal operation. This memory is potentially
+	 * consumed by kernel and any other basic services. This value is
+	 * computed as part of adaptivemmd initialization. Update this value
+	 * if base memory consumption seems to have gone down which would
+	 * mean initial estimate was high
+	 */
+	if (total_managed < mem_acctd) {
+		log_info(2, "Issue with memory computation, total_managed = %lu K, mem_acctd = %lu K, unmapped = %lu K", (total_managed * base_psize), (mem_acctd * base_psize), (unmapped_pages * base_psize));
+		pr_meminfo(2);
+	}
+	val = total_managed - mem_acctd;
+	if (val < base_mem) {
+		base_mem = val;
+		log_info(5, "Base memory consumption updated to %lu K", (base_mem * base_psize));
+		/*
+		 * When base memory consumption is updated, unaccounted
+		 * memory will be 0. No point in continuing with leak
+		 * detection. So leak detection in the next invocation.
+		 */
+		goto out;
+	}
+
+	/*
+	 * All the memory we have accounted for and the base memory usage
+	 * of the system should be close to total memory on the system.
+	 * If not, we have some unaccounted for memory. This can be
+	 * normal since drivers may allocate memory for their operation
+	 * or user may have loaded new kernel modules. We will keep track of
+	 * this memory.
+	 */
+	if (total_managed > (mem_acctd + base_mem))
+		unacct_mem = total_managed - (mem_acctd + base_mem);
+	else
+		unacct_mem = 0;
+
+	log_info(5, "Unaccounted memory = %lu K, freemem = %lu K, memavail = %lu K", (unacct_mem * base_psize), (freemem * base_psize), (memdata[MEMAVAIL] * base_psize));
+
+	/*
+	 * If unaccounted for memory grew by more than warning trigger
+	 * level compared to last sample, record it. If this unaccounted
+	 * for memory continues to grow, we may have a slow steady leak.
+	 */
+	if (unacct_mem > (mem_remain * ((100+MEM_TRIGGER_DELTA)/100))) {
+		if (mem_remain == 0) {
+			mem_remain = unacct_mem;
+			goto out;
+		}
+
+		gr_count++;
+
+		/*
+		 * Instead of slow steady leak, it is possible for large
+		 * chunk of memory to be leaked all at once. If unaccounted
+		 * memory doubled or more and we have seen growth in
+		 * unaccounted memory for the last three consecutive samples,
+		 * this may be a memory leak
+		 */
+		if (mem_remain && (unacct_mem > (mem_remain * 2)) &&
+			(gr_count > 3)) {
+			log_info(1, "Possible sudden memory leak - background memory use more than doubled (%lu K -> %lu K), unmapped memory = %lu K, freemem = %lu K, freemem previously = %lu K",
+				(mem_remain * base_psize),
+				(unacct_mem * base_psize),
+				(unmapped_pages * base_psize),
+				(freemem * base_psize),
+				(prv_free * base_psize));
+			pr_meminfo(1);
+			cmp_meminfo(1, memdata, pr_memdata);
+		}
+		else {
+			log_info(5, "Background memory use grew by more than %d (%lu -> %lu) K, unmapped memory = %lu K, freemem = %lu K, freemem previously = %lu K, MemAvail = %lu K", MEM_TRIGGER_DELTA,
+				(mem_remain * base_psize),
+				(unacct_mem * base_psize),
+				(unmapped_pages * base_psize),
+				(freemem * base_psize),
+				(prv_free * base_psize),
+				(memdata[MEMAVAIL] * base_psize));
+			cmp_meminfo(1, memdata, pr_memdata);
+		}
+		mem_remain = unacct_mem;
+	}
+	else if (unacct_mem < (mem_remain * ((100-MEM_TRIGGER_DELTA)/100))){
+		/*
+		 * unaccounted memory is starting to shrink. Reset
+		 * the counter
+		 */
+		gr_count = 0;
+	}
+
+	/*
+	 * If unaccounted memory grew over 10 samples without shrinking
+	 * in between, it may point to a slow leak
+	 */
+	if (gr_count > UNACCT_MEM_GRTH_MAX) {
+		log_info(1, "Possible slow memory leak - background memory use has been growing steadily (currently %lu) K, unmapped memory = %lu K, freemem = %lu K, MemAvail = %lu K",
+			(mem_remain * base_psize),
+			(unmapped_pages * base_psize),
+			(freemem * base_psize),
+			(memdata[MEMAVAIL] * base_psize));
+		pr_meminfo(1);
+		cmp_meminfo(1, memdata, pr_memdata);
+		gr_count = 0;
+	}
+
+out:
+	/*
+	 * Update persistent metrics for next invocation
+	 */
+	prv_free = freemem;
+	for (i = 0; i < NR_MEMDATA_ITEMS; i++)
+		pr_memdata[i] = memdata[i];
+}
+
+/*
  * updates_for_hugepages() - Update any values that need to be updated
  *	whenever number of hugepages on system changes significantly
  */
@@ -917,7 +1424,7 @@ updates_for_hugepages(int delta)
 	if (delta < 5)
 		return;
 
-	update_neg_dentry();
+	update_neg_dentry(false);
 }
 
 /*
@@ -1119,8 +1626,9 @@ one_time_initializations()
 	update_zone_watermarks();
 	update_hugepages();
 
-	update_neg_dentry();
+	update_neg_dentry(true);
 	check_memory_pressure(true);
+	check_memory_leak(true);
 }
 
 /*
@@ -1141,6 +1649,8 @@ one_time_initializations()
 #define OPT_ENB_DENTRY	"ENABLE_NEG_DENTRY_MGMT"
 #define OPT_NEG_DENTRY1	"NEG-DENTRY-CAP"
 #define OPT_NEG_DENTRY2	"NEG_DENTRY_CAP"
+#define OPT_ENB_MEMLEAK	"ENABLE_MEMLEAK_CHECK"
+
 int
 parse_config()
 {
@@ -1239,6 +1749,8 @@ parse_config()
 			else
 				neg_dentry_pct = val;
 		}
+		else if (strncmp(token, OPT_ENB_MEMLEAK, sizeof(OPT_ENB_MEMLEAK)) == 0)
+			memleak_check_enabled = ((val==0)?false:true);
 		else {
 			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
 			break;
@@ -1437,6 +1949,7 @@ main(int argc, char **argv)
 			rescale_maxwsf();
 
 		check_memory_pressure(false);
+		check_memory_leak(false);
 
 		sleep(periodicity);
 	}
