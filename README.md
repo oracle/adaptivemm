@@ -1,44 +1,63 @@
 # adaptivemm
-## A userspace daemon for proactive free memory management
+## A userspace daemon for proactive memory management
 
 ## Overview
+adaptivemm offers montioring and tuning of various aspects of system
+memory. adaptivemm consists of modules that each offer a different
+set of functionality.
 
-adaptivemm monitors current state of free pages overall and free
-pages of each order. Based upon current rate of free pages
-consumption and memory fragmentation, it predicts if system is
-likely to run out of memory or if memory will become severely
-fragmented in near future. If so, it adjusts watermarks to force
-memory reclamation if system is about to run out of memory. If
-memory is predicted to become severely fragmented, it triggers
-compaction in the kernel. The goal is to avert memory shortage
-and/or fragmentation by taking proactive measures. To arrive at this
-prediction, adaptivemm samples free pages of each order on each
-node periodically and fits a straight line using method of least
-squares to these sample points. It also computes current reclamation
-rate by monitoring `/proc/vmstat`. The equation derived for best fit
-line is used to compute when free memory exhaustion will occur
-taking into account current reclamation rate. If this exhaustion is
-imminent in near future, watermarks are adjusted to initiate
-reclamation.
+Free memory management module in adaptivemm monitors current state
+of free pages overall and free pages of each order. Based upon
+current rate of free pages consumption and memory fragmentation, it
+predicts if system is likely to run out of memory or if memory will
+become severely fragmented in near future. If so, it adjusts
+watermarks to force memory reclamation if system is about to run out
+of memory. If memory is predicted to become severely fragmented, it
+triggers compaction in the kernel. The goal is to avert memory
+shortage and/or fragmentation by taking proactive measures. To
+arrive at this prediction, adaptivemm samples free pages of each
+order on each node periodically and fits a straight line using
+method of least squares to these sample points. It also computes
+current reclamation rate by monitoring `/proc/vmstat`. The equation
+derived for best fit line is used to compute when free memory
+exhaustion will occur taking into account current reclamation rate.
+If this exhaustion is imminent in near future, watermarks are
+adjusted to initiate reclamation.
+
+Negative dentry management module monitors and adjusts the the
+negative dentry limit on the system. Negative dentry limit is
+interpreted by kernel as a fraction of total system memory. When a
+large number of hugepages are allocated on the system, a cap as a
+fraction of total system memory can be too high and can result in
+out-of-memory condition since hugepages are not swappable.
+adaptivemm can make sure that negative dentry cap is always set to
+accomplish what end user intends the cap to be as a fraction
+irrespective of number of hugepages allocated on the system.
+
+Memory leak detection module looks for abnormal changes to free
+memory. It uses data reported in /proc/meminfo to determine how much
+memory is in use and based upon that number, does the amount of free
+memory look reasonable.
 
 ## How it works
 
-adaptivemm samples `/proc/buddyinfo` to monitor the total available
-free memory and the fraction thereof that, whilst notionally free,
-requires compaction before it can be used.  At any given moment, the
-difference between these two quantities is the amount of memory that
-is free for immediate use: once this is exhausted, subsequent
-allocations will stall whilst a portion of the fragmented memory is
-compacted.  The program calculates trends for both the total and
-fragmented free memory and, by extrapolation, determines whether
-exhaustion is imminent.  At the last possible moment, i.e. only once
-it is absolutely necessary, the program initiates compaction with a
-view to recovering the fragmented memory before it is required by
-subsequent allocations. It initiates compaction by writing 1 to
-`/sys/devices/system/node/node%d/compact`. If number of free pages is
-expected to be exhausted, it looks at the number of inactive pages
-in cache buffer to determine if changing watermarks can result in
-meaningful number of pages reclaimed. It adjusts watermark by
+adaptivemm free memory management module samples `/proc/buddyinfo`
+to monitor the total available free memory and the fraction thereof
+that, whilst notionally free, requires compaction before it can be
+used.  At any given moment, the difference between these two
+quantities is the amount of memory that is free for immediate use:
+once this is exhausted, subsequent allocations will stall whilst a
+portion of the fragmented memory is compacted.  The program
+calculates trends for both the total and fragmented free memory and,
+by extrapolation, determines whether exhaustion is imminent.  At the
+last possible moment, i.e. only once it is absolutely necessary, the
+program initiates compaction with a view to recovering the
+fragmented memory before it is required by subsequent allocations.
+It initiates compaction by writing 1 to
+`/sys/devices/system/node/node%d/compact`. If number of free pages
+is expected to be exhausted, it looks at the number of inactive
+pages in cache buffer to determine if changing watermarks can result
+in meaningful number of pages reclaimed. It adjusts watermark by
 changing watermark scale factor in
 `/proc/sys/vm/watermark_scale_factor`.
 
@@ -47,16 +66,16 @@ changing watermark scale factor in
 adaptivemm must be run as root and must have access to following files:
 
 `/proc/vmstat`
-
 `/proc/buddyinfo`
-
 `/proc/zoneinfo`
-
+'/proc/kpagecount'
+'/proc/kpageflags'
 `/proc/sys/vm/watermark_scale_factor`
-
 `/sys/devices/system/node/node%d/compact`
+'/proc/sys/fs/negative-dentry-limit'
 
-adaptivemm daemon can be run standalone or can be started automatically by systemd/init.
+adaptivemm daemon can be run standalone or can be started
+automatically by systemd/init.
 
 ## Usage
 
@@ -128,6 +147,13 @@ Copy adaptivemmd binary to a directory appropriate for your system, typically `/
 	# NOTE: for kernels with support for this functionality
 	#	(Hint: look for /proc/sys/fs/negative-dentry-limit)
 	NEG_DENTRY_CAP=15
+
+	# ==============================
+	# Memory leack detection section
+	# ==============================
+	# Enable checks for possible memory leaks
+	ENABLE_MEMLEAK_CHECK=1
+
 
 ## Documentation
 
