@@ -100,15 +100,41 @@ Following configuration options are available in the configuration file
 Verbosity level (0-5), higher level results in more information being logged
 .RE
 .PP
+\fBAGGRESSIVENESS\fR (number)
+.RS 4
+Aggressiveness level (1-3) for optimizations, higher numbers mean more
+aggressive optimization
+.RE
+.PP
+\fBENABLE_FREE_PAGE_MGMT\fR (number)
+.RS 4
+Allow adaptivemmd to do free page management. A non-zero value enables
+free page management while a value of 0 disables it.
+.RE
+.PP
 \fBMAXGAP\fR (number)
 .RS 4
 Maximum amount of gap (in GB) allowed between low and high watermarks
 .RE
 .PP
-\fBAGGRESSIVENESS\fR (number)
+\fBENABLE_NEG_DENTRY_MGMT\fR (number)
 .RS 4
-Aggressiveness level (1-3) for optimizations, higher numbers mean more
-aggressive optimization
+Allow adaptivemmd to manage number of negative dentries in cache. A
+non-zero value enables negative dentry management while a value of 0
+disables it.
+.RE
+.PP
+\fBNEG_DENTRY_CAP\fR (number)
+.RS 4
+Cap for memory consumed by negative dentries as a fraction of 1000.
+Range of values supported by kernel is 1-100.
+.RE
+.PP
+\fBENABLE_MEMLEAK_CHECK\fR (number)
+.RS 4
+Allow adaptivemmd to check for possible memory leaks. A
+non-zero value enables memory leak check while a value of 0
+disables it.
 .RE
 
 .SH FILES
