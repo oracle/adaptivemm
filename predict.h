@@ -81,7 +81,7 @@ unsigned long predict(struct frag_info *, struct lsq_struct *,
 /* Use pr_info to log info irrespective of verbosity level */
 #define pr_info(...)	log_msg(LOG_INFO, __VA_ARGS__)
 
-extern void log_msg(int level, char *fmt, ...);
+extern void log_msg(int level, char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
 #ifdef __cplusplus
 }

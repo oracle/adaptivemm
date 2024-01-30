@@ -1,4 +1,4 @@
-CC=gcc
+CC?=gcc
 CFLAGS=-I. -Wall -g
 LDFLAGS=
 OBJS=predict.o adaptivemmd.o
@@ -18,4 +18,3 @@ adaptivemmd: $(OBJS)
 
 clean:
 	rm -f $(OBJS) adaptivemmd cscope.*
-

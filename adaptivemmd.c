@@ -93,8 +93,8 @@
 
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
-unsigned long total_free_pages, total_cache_pages, total_hugepages, base_psize;
-long compaction_rate, reclaim_rate;
+unsigned long total_free_pages, total_cache_pages, base_psize;
+long compaction_rate, reclaim_rate, total_hugepages;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
 int dry_run;
 int debug_mode, verbose, del_lock = 0;
@@ -333,7 +333,7 @@ update_hugepages()
 {
 	DIR *dp;
 	struct dirent *ep;
-	unsigned long newhpages = 0;
+	long newhpages = 0;
 	int rc = -1;
 
 	dp = opendir(HUGEPAGESINFO);
@@ -361,7 +361,7 @@ update_hugepages()
 		if (newhpages) {
 			unsigned long tmp;
 
-			tmp = abs(newhpages - total_hugepages);
+			tmp = llabs(newhpages - total_hugepages);
 			/*
 			 * If number of hugepages changes from 0 to a
 			 * positive number, percentage calculation will
@@ -394,8 +394,9 @@ update_hugepages()
 #define ZONE_LOW	"low"
 #define ZONE_HIGH	"high"
 #define ZONE_MNGD	"managed"
-#define ZONE_PGST	"pagesets"
-int
+#define ZONE_PROT	"protection:"
+
+void
 update_zone_watermarks()
 {
 	FILE *fp = NULL;
@@ -405,13 +406,16 @@ update_zone_watermarks()
 
 	fp = fopen(ZONEINFO, "r");
 	if (!fp)
-		return 0;
+		goto out_free;
 
 	while ((fgets(line, len, fp) != NULL)) {
 		if (strncmp(line, "Node", 4) == 0) {
 			char node[FLDLEN], zone[FLDLEN], zone_name[FLDLEN];
 			int nid;
-			unsigned long min, low, high, managed;
+			unsigned long min = 0;
+			unsigned long low = 0;
+			unsigned long high = 0;
+			unsigned long managed = 0;
 
 			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
 			if ((current_node == -1) || (current_node != nid)) {
@@ -431,10 +435,6 @@ update_zone_watermarks()
 			 * Ignore pages in DMA zone for x86 and x86-64.
 			 */
 			if (!skip_dmazone || (strncmp("DMA", zone_name, FLDLEN) != 0)) {
-				/*
-				 * We found the normal zone. Now look for
-				 * line "pages free"
-				 */
 				if (fgets(line, len, fp) == NULL)
 					goto out;
 
@@ -454,7 +454,7 @@ update_zone_watermarks()
 						high = val;
 					if (strncmp(name, ZONE_MNGD, sizeof(ZONE_MNGD)) == 0)
 						managed = val;
-					if (strncmp(name, ZONE_PGST, sizeof(ZONE_PGST)) == 0)
+					if (strncmp(name, ZONE_PROT, sizeof(ZONE_PROT)) == 0)
 						break;
 				}
 
@@ -467,9 +467,9 @@ update_zone_watermarks()
 	}
 
 out:
-	free(line);
 	fclose(fp);
-	return 0;
+out_free:
+	free(line);
 }
 
 /*
@@ -529,14 +529,15 @@ no_pages_reclaimed()
 	FILE *fp = NULL;
 	size_t len = 100;
 	char *line = malloc(len);
-	unsigned long val, reclaimed;
+	unsigned long val = 0;
+	unsigned long reclaimed = 0;
 	char desc[100];
 
 	fp = fopen(VMSTAT, "r");
 	if (!fp)
-		return 0;
+		goto out;
 
-	total_cache_pages = reclaimed = 0;
+	total_cache_pages = 0;
 	while ((fgets(line, len, fp) != NULL)) {
 		sscanf(line, "%s %lu\n", desc, &val );
 		if (strcmp(desc, "pgsteal_kswapd") == 0)
@@ -551,8 +552,9 @@ no_pages_reclaimed()
 			total_cache_pages += val;
 	}
 
-	free(line);
 	fclose(fp);
+out:
+	free(line);
 	return reclaimed;
 }
 
@@ -774,7 +776,7 @@ rescale_watermarks(int scale_up)
 
 	log_info(1, "Adjusting watermarks. Current watermark scale factor = %s", scaled_wmark);
 	if (dry_run)
-		goto out;
+		return;
 
 	log_info(1, "New watermark scale factor = %ld", scaled_watermark);
 	sprintf(scaled_wmark, "%ld\n", scaled_watermark);
@@ -807,7 +809,7 @@ static int
 check_permissions(void)
 {
 	int fd;
-	char tmpstr[40];
+	char tmpstr[40] = {0};
 
 	/*
 	 * Make sure running kernel supports watermark_scale_factor file
@@ -820,6 +822,7 @@ check_permissions(void)
 	/* Can we write to this file */
 	if (read(fd, tmpstr, sizeof(tmpstr)) < 0) {
 		log_err("Can not read "RESCALE_WMARK" (%s)", strerror(errno));
+		close(fd);
 		return 0;
 	}
 	close(fd);
@@ -830,6 +833,7 @@ check_permissions(void)
 
 	if (write(fd, tmpstr, strlen(tmpstr)) < 0) {
 		log_err("Can not write to "RESCALE_WMARK" (%s)", strerror(errno));
+		close(fd);
 		return 0;
 	}
 	close(fd);
@@ -1743,7 +1747,7 @@ parse_config()
 			 * instead to doing it through adaptivemmd
 			 */
 			if (val > MAX_NEGDENTRY)
-				log_err("Bad value for negative dentry cap = %d (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
+				log_err("Bad value for negative dentry cap = %ld (>%d). Proceeding with default of %d", val, MAX_NEGDENTRY, neg_dentry_pct);
 			else if (val < 1)
 				neg_dentry_pct = 1;
 			else
@@ -1927,7 +1931,7 @@ main(int argc, char **argv)
 	 */
 	base_psize = getpagesize()/1024;
 
-	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
+	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%lu)", verbose, aggressiveness, maxgap);
 
 	one_time_initializations();
 
