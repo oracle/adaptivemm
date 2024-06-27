@@ -217,9 +217,12 @@ compact(int node_id)
 	close(fd);
 }
 
-/* Parse a single input line;  return 1 if successful or 0 otherwise. */
+/*
+ * Parse a single input line for buddyinfo;  return 1 if successful
+ * or 0 otherwise.
+ */
 int
-scan_line(char *line, char *node, char *zone, unsigned long *nr_free)
+scan_buddyinfo(char *line, char *node, char *zone, unsigned long *nr_free)
 {
 	char copy[LINE_MAX];
 	unsigned int order;
@@ -281,18 +284,20 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 			if (feof(ifile)) {
 				rewind(ifile);
 				return EOF_RET;
-			} else {
-				log_err("fgets(): %s",
-						strerror(ferror(ifile)));
-				return ERR;
 			}
+			log_err("fgets(): %s",
+					strerror(ferror(ifile)));
+			return ERR;
 		}
 
-		if (!scan_line(line, node, zone, free_pages)) {
+		if (!scan_buddyinfo(line, node, zone, free_pages)) {
 			log_err("invalid input: %s", line);
 			return ERR;
 		}
-		sscanf(node, "%d", nid);
+		if (sscanf(node, "%d", nid) <= 0) {
+			log_err("invalid input: %s", node);
+			return ERR;
+		}
 
 		/*
 		 * Accumulate free pages infor for just the current node
@@ -337,52 +342,53 @@ update_hugepages()
 	int rc = -1;
 
 	dp = opendir(HUGEPAGESINFO);
-	if (dp != NULL) {
-		while ((ep = readdir(dp)) != NULL) {
-			if (ep->d_type == DT_DIR) {
-				FILE *fp;
-				long pages, psize;
-				char tmpstr[312];
+	if (dp == NULL)
+		return rc;
 
-				/* Check if it is one of the hugepages dir */
-				if (strstr(ep->d_name, "hugepages-") == NULL)
-					continue;
-				snprintf(tmpstr, sizeof(tmpstr), "%s/%s/nr_hugepages", HUGEPAGESINFO, ep->d_name);
-				if ((fp = fopen(tmpstr, "r")) != NULL) {
-					if (fgets(tmpstr, sizeof(tmpstr), fp) != NULL) {
-						sscanf(tmpstr, "%ld", &pages);
-						sscanf(ep->d_name, "hugepages-%ldkB", &psize);
-						newhpages += pages * psize / base_psize;
-					}
-					fclose(fp);
-				}
-			}
-		}
-		if (newhpages) {
-			unsigned long tmp;
+	while (((ep = readdir(dp)) != NULL) && (ep->d_type == DT_DIR)) {
+		FILE *fp;
+		long pages, psize;
+		char tmpstr[312];
 
-			tmp = abs(newhpages - total_hugepages);
-			/*
-			 * If number of hugepages changes from 0 to a
-			 * positive number, percentage calculation will
-			 * fail. Set the percentage to a high number
-			 */
-			if (total_hugepages == 0)
-				rc = INT_MAX;
-			else
-				rc = (tmp*100)/total_hugepages;
+		/* Check if it is one of the hugepages dir */
+		if (strstr(ep->d_name, "hugepages-") == NULL)
+			continue;
+		snprintf(tmpstr, sizeof(tmpstr), "%s/%s/nr_hugepages",
+				HUGEPAGESINFO, ep->d_name);
+		fp = fopen(tmpstr, "r");
+		if (fp == NULL)
+			continue;
+		if (fgets(tmpstr, sizeof(tmpstr), fp) != NULL) {
+			sscanf(tmpstr, "%ld", &pages);
+			sscanf(ep->d_name, "hugepages-%ldkB", &psize);
+			newhpages += pages * psize / base_psize;
 		}
-		/*
-		 * If number of hugepages changes to 0, that would be
-		 * a 100% change
-		 */
-		else if (total_hugepages)
-			rc = 100;
-		else
-			rc = 0;
-		total_hugepages = newhpages;
-		closedir(dp);
+		fclose(fp);
 	}
+	if (newhpages) {
+		unsigned long tmp;
+
+		tmp = abs(newhpages - total_hugepages);
+		/*
+		 * If number of hugepages changes from 0 to a
+		 * positive number, percentage calculation will
+		 * fail. Set the percentage to a high number
+		 */
+		if (total_hugepages == 0)
+			rc = INT_MAX;
+		else
+			rc = (tmp*100)/total_hugepages;
+	}
+	/*
+	 * If number of hugepages changes to 0, that would be
+	 * a 100% change
+	 */
+	else if (total_hugepages)
+		rc = 100;
+	else
+		rc = 0;
+	total_hugepages = newhpages;
+	closedir(dp);
 
 	return rc;
 }
@@ -413,7 +419,8 @@ update_zone_watermarks()
 			int nid;
 			unsigned long min, low, high, managed;
 
-			sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name);
+			if (sscanf(line, "%s %d, %s %8s\n", node, &nid, zone, zone_name) <= 0)
+				goto out;
 			if ((current_node == -1) || (current_node != nid)) {
 				current_node = nid;
 				min_wmark[nid] = low_wmark[nid] = 0;
@@ -445,7 +452,8 @@ update_zone_watermarks()
 					if (fgets(line, len, fp) == NULL)
 						goto out;
 
-					sscanf(line, "%s %lu\n", name, &val);
+					if (sscanf(line, "%s %lu\n", name, &val) <= 0)
+						goto out;
 					if (strncmp(name, ZONE_MIN, sizeof(ZONE_MIN)) == 0)
 						min = val;
 					if (strncmp(name, ZONE_LOW, sizeof(ZONE_LOW)) == 0)
@@ -538,7 +546,8 @@ no_pages_reclaimed()
 
 	total_cache_pages = reclaimed = 0;
 	while ((fgets(line, len, fp) != NULL)) {
-		sscanf(line, "%s %lu\n", desc, &val );
+		if (sscanf(line, "%s %lu\n", desc, &val) <= 0)
+			break;
 		if (strcmp(desc, "pgsteal_kswapd") == 0)
 			reclaimed += val;
 		if (strcmp(desc, "pgsteal_kswapd_normal") == 0)
@@ -610,7 +619,7 @@ rescale_watermarks(int scale_up)
 	for (i = 0; i < MAX_NUMANODES; i++) {
 		lmark += low_wmark[i];
 		hmark += high_wmark[i];
-		if (low_wmark[i] != 0 )
+		if (low_wmark[i] != 0)
 			count++;
 	}
 	lmark = lmark/count;
@@ -633,8 +642,7 @@ rescale_watermarks(int scale_up)
 		 */
 		if (scaled_watermark >= atoi(scaled_wmark))
 			scaled_watermark = (atoi(scaled_wmark) * 9)/10;
-	}
-	else {
+	} else {
 		/*
 		 * Determine how urgent the situation is regarding
 		 * remaining free pages. If free pages are already
@@ -657,8 +665,7 @@ rescale_watermarks(int scale_up)
 				scaled_watermark = ((unsigned long)(1000 - frac_free)/10)*10;
 				if (scaled_watermark == 0)
 					return;
-			}
-			else {
+			} else {
 				/*
 				 * We are running low on free pages but
 				 * there are not enough pages available to
@@ -671,8 +678,7 @@ rescale_watermarks(int scale_up)
 				if (scaled_watermark == 0)
 					return;
 			}
-		}
-		else {
+		} else {
 			/*
 			 * System is not in dire situation at this time yet.
 			 * Free pages are expected to approach high
@@ -685,8 +691,7 @@ rescale_watermarks(int scale_up)
 				scaled_watermark = ((unsigned long)(1000 - frac_free)/20)*10;
 				if (scaled_watermark == 0)
 					return;
-			}
-			else {
+			} else {
 				if (atoi(scaled_wmark) > 100)
 					scaled_watermark = (atoi(scaled_wmark) * 11)/10;
 				else
@@ -747,7 +752,7 @@ rescale_watermarks(int scale_up)
 		 * still be enough free pages left for system to continue
 		 * making progress. Use a headroom of 2% of currently
 		 * available free pages. If the number of free pages is
-		 * already below this threshhold, setting this new wsf
+		 * already below this threshold, setting this new wsf
 		 * is very likely to kick OOM killer.
 		 */
 		threshold = new_lmark + total_free_pages * 1.02;
@@ -787,7 +792,6 @@ rescale_watermarks(int scale_up)
 
 out:
 	close(fd);
-	return;
 }
 
 static inline unsigned long
@@ -801,7 +805,7 @@ get_msecs(struct timespec *spec)
 
 /*
  * check_permissions() - Check all required permissions for this program to
- *			run succesfully
+ *			run successfully
  */
 static int
 check_permissions(void)
@@ -813,23 +817,23 @@ check_permissions(void)
 	 * Make sure running kernel supports watermark_scale_factor file
 	 */
 	if ((fd = open(RESCALE_WMARK, O_RDONLY)) == -1) {
-		log_err("Can not open "RESCALE_WMARK" (%s)", strerror(errno));
+		fprintf(stderr, "Can not open "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 
 	/* Can we write to this file */
 	if (read(fd, tmpstr, sizeof(tmpstr)) < 0) {
-		log_err("Can not read "RESCALE_WMARK" (%s)", strerror(errno));
+		fprintf(stderr, "Can not read "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 	close(fd);
 	if ((fd = open(RESCALE_WMARK, O_WRONLY)) == -1) {
-		log_err("Can not open "RESCALE_WMARK" (%s)", strerror(errno));
+		fprintf(stderr, "Can not open "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 
 	if (write(fd, tmpstr, strlen(tmpstr)) < 0) {
-		log_err("Can not write to "RESCALE_WMARK" (%s)", strerror(errno));
+		fprintf(stderr, "Can not write to "RESCALE_WMARK" (%s)", strerror(errno));
 		return 0;
 	}
 	close(fd);
@@ -945,12 +949,12 @@ get_unmapped_pages()
 
 	if ((fd1 = open(KPAGECOUNT, O_RDONLY)) == -1) {
 		log_err("Error opening kpagecount");
-		return(-1);
+		return -1;
 	}
 
 	if ((fd2 = open(KPAGEFLAGS, O_RDONLY)) == -1) {
 		log_err("Error opening kpageflags");
-		return(-1);
+		return -1;
 	}
 
 	inbytes1 = read(fd1, pagecnt, BATCHSIZE);
@@ -1000,12 +1004,12 @@ nextloop:
 			log_err("Error reading kpagecount");
 		close(fd1);
 		close(fd2);
-		return(-1);
+		return -1;
 	}
 
 	close(fd1);
 	close(fd2);
-	return(unmapped_pages);
+	return unmapped_pages;
 }
 
 /*
@@ -1021,9 +1025,8 @@ pr_meminfo(int level)
 	if (!fp)
 		return;
 
-	while ((fgets(line, sizeof(line), fp) != NULL)) {
+	while ((fgets(line, sizeof(line), fp) != NULL))
 		log_info(level, "%s", line);
-	}
 
 	fclose(fp);
 
@@ -1168,7 +1171,8 @@ check_memory_leak(bool init)
 	 */
 	inuse_mem = 0;
 	while ((fgets(line, sizeof(line), fp) != NULL)) {
-		sscanf(line, "%s %lu\n", desc, &val );
+		if (sscanf(line, "%s %lu\n", desc, &val) <= 0)
+			break;
 		switch (desc[0]) {
 		case 'A':
 			if (strcmp(desc, "AnonPages:") == 0) {
@@ -1366,8 +1370,7 @@ check_memory_leak(bool init)
 				(prv_free * base_psize));
 			pr_meminfo(1);
 			cmp_meminfo(1, memdata, pr_memdata);
-		}
-		else {
+		} else {
 			log_info(5, "Background memory use grew by more than %d (%lu -> %lu) K, unmapped memory = %lu K, freemem = %lu K, freemem previously = %lu K, MemAvail = %lu K", MEM_TRIGGER_DELTA,
 				(mem_remain * base_psize),
 				(unacct_mem * base_psize),
@@ -1378,8 +1381,7 @@ check_memory_leak(bool init)
 			cmp_meminfo(1, memdata, pr_memdata);
 		}
 		mem_remain = unacct_mem;
-	}
-	else if (unacct_mem < (mem_remain * ((100-MEM_TRIGGER_DELTA)/100))){
+	} else if (unacct_mem < (mem_remain * ((100-MEM_TRIGGER_DELTA)/100))){
 		/*
 		 * unaccounted memory is starting to shrink. Reset
 		 * the counter
@@ -1566,11 +1568,11 @@ check_memory_pressure(bool init)
 		 * If all of /proc/buddyinfo has been processed,
 		 * terminate this loop and start the next one
 		 */
-		if (retval == -1)
+		if (retval == EOF_RET)
 			break;
 	}
 
-	if (retval == 0) {
+	if (retval == ERR) {
 		log_err("error reading buddyinfo (%s)", strerror(errno));
 		bailout(1);
 	}
@@ -1713,12 +1715,11 @@ parse_config()
 		val = strtoul(&buf[i+1], NULL, 0);
 
 		if (strncmp(token, OPT_V, sizeof(OPT_V)) == 0) {
-			if(val <= MAX_VERBOSE)
+			if (val <= MAX_VERBOSE)
 				verbose = val;
 			else
 				log_err("Verbosity value is greater than %d. Proceeding with defaults", MAX_VERBOSE);
-		}
-		else if (strncmp(token, OPT_ENB_PAGE, sizeof(OPT_ENB_PAGE)) == 0)
+		} else if (strncmp(token, OPT_ENB_PAGE, sizeof(OPT_ENB_PAGE)) == 0)
 			memory_pressure_check_enabled = ((val==0)?false:true);
 		else if (strncmp(token, OPT_GAP, sizeof(OPT_GAP)) == 0)
 			maxgap = val;
@@ -1727,8 +1728,7 @@ parse_config()
 				aggressiveness = val;
 			else
 				log_err("Aggressiveness value is greater than %d. Proceeding with defaults", MAX_AGGRESSIVE);
-		}
-		else if (strncmp(token, OPT_ENB_DENTRY, sizeof(OPT_ENB_DENTRY)) == 0)
+		} else if (strncmp(token, OPT_ENB_DENTRY, sizeof(OPT_ENB_DENTRY)) == 0)
 			neg_dentry_check_enabled = ((val==0)?false:true);
 		else if ((strncmp(token, OPT_NEG_DENTRY1, sizeof(OPT_NEG_DENTRY1)) == 0) ||
 			(strncmp(token, OPT_NEG_DENTRY2, sizeof(OPT_NEG_DENTRY2)) == 0)) {
@@ -1748,8 +1748,7 @@ parse_config()
 				neg_dentry_pct = 1;
 			else
 				neg_dentry_pct = val;
-		}
-		else if (strncmp(token, OPT_ENB_MEMLEAK, sizeof(OPT_ENB_MEMLEAK)) == 0)
+		} else if (strncmp(token, OPT_ENB_MEMLEAK, sizeof(OPT_ENB_MEMLEAK)) == 0)
 			memleak_check_enabled = ((val==0)?false:true);
 		else {
 			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
@@ -1842,37 +1841,41 @@ main(int argc, char **argv)
 	signal(SIGHUP, mysig);
 
 	/* Check if an instance is running already */
-	lockfd = open(LOCKFILE, O_RDWR|O_CREAT|O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	lockfd = open(LOCKFILE, O_RDWR|O_CREAT|O_EXCL, 0644);
 	if (lockfd < 0) {
 		if (errno == EEXIST)
-			log_err("Lockfile %s exists. Another daemon may be running. Exiting now", LOCKFILE);
+			fprintf(stderr, "Lockfile %s exists. Another daemon may be running. Exiting now", LOCKFILE);
 		else
-			log_err("Failed to open lockfile %s", LOCKFILE);
+			fprintf(stderr, "Failed to open lockfile %s", LOCKFILE);
 		bailout(1);
 	} else {
 		del_lock = 1;
 		ftruncate(lockfd, 0);
 	}
 
-	/* Become a daemon unless -d was specified */
-	if (!debug_mode)
-		if (daemon(0, 0) != 0) {
-			log_err("Failed to become daemon. %s", strerror(errno));
-			bailout(1);
-		}
-
 	snprintf(tmpbuf, TMPCHARBUFSIZE, "%ld\n", (long)getpid());
-	if (write(lockfd, (const void *)tmpbuf, strlen(tmpbuf)) < 0)
-		log_err("Failed to write PID to lockfile %s", LOCKFILE);
-	close(lockfd);
+	if (write(lockfd, (const void *)tmpbuf, strlen(tmpbuf)) < 0) {
+		fprintf(stderr, "Failed to write PID to lockfile %s", LOCKFILE);
+		close(lockfd);
+		bailout(1);
+	}
 
 	if (errflag) {
 		help_msg(argv[0]);
 		bailout(1);
 	}
 
-	if (!check_permissions())
+	if (!check_permissions()) {
+		fprintf(stderr, "ERROR: No permission to read/write required files. Are you running as root? Exiting\n");
 		bailout(1);
+	}
+
+	/* Become a daemon unless -d was specified */
+	if (!debug_mode)
+		if (daemon(0, 0) != 0) {
+			fprintf(stderr, "Failed to become daemon. %s", strerror(errno));
+			bailout(1);
+		}
 
 	/*
 	 * Determine the architecture we are running on and decide if "DMA"
@@ -1890,21 +1893,21 @@ main(int argc, char **argv)
 	 * level desired
 	 */
 	switch (aggressiveness) {
-		case 1:
-			maxwsf = 400;
-			max_compaction_order = MAX_ORDER - 6;
-			periodicity = LOW_PERIODICITY;
-			break;
-		case 2:
-			maxwsf = 700;
-			max_compaction_order = MAX_ORDER - 4;
-			periodicity = NORM_PERIODICITY;
-			break;
-		case 3:
-			maxwsf = 1000;
-			max_compaction_order = MAX_ORDER - 2;
-			periodicity = HIGH_PERIODICITY;
-			break;
+	case 1:
+		maxwsf = 400;
+		max_compaction_order = MAX_ORDER - 6;
+		periodicity = LOW_PERIODICITY;
+		break;
+	case 2:
+		maxwsf = 700;
+		max_compaction_order = MAX_ORDER - 4;
+		periodicity = NORM_PERIODICITY;
+		break;
+	case 3:
+		maxwsf = 1000;
+		max_compaction_order = MAX_ORDER - 2;
+		periodicity = HIGH_PERIODICITY;
+		break;
 	}
 
 	update_zone_watermarks();
@@ -1913,9 +1916,10 @@ main(int argc, char **argv)
 	 * If user specifies a maximum gap value for gap between low
 	 * and high watermarks, recompute maxwsf to account for that.
 	 * Update zone page information first.
-         */
+	*/
 	if (maxgap != 0) {
 		unsigned long total_managed = 0;
+
 		for (i = 0; i < MAX_NUMANODES; i++)
 			total_managed += managed_pages[i];
 		maxwsf = (maxgap * 10000UL * 1024UL * 1024UL * 1024UL)/(total_managed * getpagesize());
@@ -1955,5 +1959,5 @@ main(int argc, char **argv)
 	}
 
 	closelog();
-	return(0);
+	return 0;
 }
