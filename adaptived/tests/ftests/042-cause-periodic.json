@@ -1,0 +1,38 @@
+{
+	"rules": [
+		{
+			"name": "Periodically save off the contents of various files",
+			"causes": [
+				{
+					"name": "periodic",
+					"description": "period is in milliseconds",
+					"args": {
+						"period": 1000
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "logger",
+					"args": {
+						"logfile": "mem.log",
+						"separator_prefix": "<<<<< ",
+						"date_format": "%Y-%m-%d-%H:%M:%S-%Z",
+						"separator_postfix": " >>>>>",
+						"utc": true,
+						"file_separator": "==============================",
+						"max_file_size": 128,
+						"files": [
+							{
+								"file": "test042_test_file1.txt"
+							},
+							{
+								"file": "test042_test_file2.txt"
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}

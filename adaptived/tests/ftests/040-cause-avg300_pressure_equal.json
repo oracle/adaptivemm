@@ -1,0 +1,27 @@
+{
+	"rules": [
+		{
+			"name": "pressure equal test.",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "040-cause-avg300_pressure_equal.pressure",
+						"threshold": 12.5,
+						"duration": 3,
+						"operator": "equal",
+						"measurement": "some-avg300"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 42
+					}
+				}
+			]
+		}
+	]
+}

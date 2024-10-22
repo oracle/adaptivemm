@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Subtract from an integer cgroup setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "./test021.cgroup",
+						"value": 1024,
+						"operator": "subtract",
+						"limit": 987654,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

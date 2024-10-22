@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "long long setting < threshold",
+			"causes": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "035-cause-setting.setting",
+						"threshold": 6000,
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 66
+					}
+				}
+			]
+		}
+	]
+}

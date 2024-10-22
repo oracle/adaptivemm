@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Kill up to 2 memory hogs per loop",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_processes",
+					"args": {
+						"proc_names": [
+							{ "name": "068_process" }
+						],
+						"count": 2,
+						"field": "rss"
+					}
+				}
+			]
+		}
+	]
+}

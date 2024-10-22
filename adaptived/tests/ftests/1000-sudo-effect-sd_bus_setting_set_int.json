@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Set an integer cgroup setting via sd_bus",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1000.slice",
+						"setting": "MemoryLow",
+						"value": 89997312,
+						"operator": "set",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

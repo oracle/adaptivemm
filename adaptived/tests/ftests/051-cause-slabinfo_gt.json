@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "slabinfo long long setting > threshold",
+			"causes": [
+				{
+					"name": "slabinfo",
+					"args": {
+						"slabinfo_file": "051-cause-slabinfo_gt.setting",
+						"field": "kmalloc-32",
+						"threshold": 172484,
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

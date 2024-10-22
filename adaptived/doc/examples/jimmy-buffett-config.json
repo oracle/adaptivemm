@@ -1,0 +1,48 @@
+{
+	"rules": [
+		{
+			"name": "Tell me when it's after 5pm on a weekday",
+			"description": "Jimmy Buffett rule.  It may be 5 o'clock somewhere, but is it 5 o'clock here? :)",
+			"causes": [
+				{
+					"name": "time_of_day",
+					"args": {
+						"time": "17:00:00",
+						"operator": "greaterthan"
+					}
+				},
+				{
+					"name": "days_of_the_week",
+					"args": {
+						"days": [
+							{
+								"day": "monday"
+							},
+							{
+								"day": "tuesday"
+							},
+							{
+								"day": "wednesday"
+							},
+							{
+								"day": "thursday"
+							},
+							{
+								"day": "friday"
+							}
+						]
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"message": "It's 5 o'clock here :)\n",
+						"file": "stderr"
+					}
+				}
+			]
+		}
+	]
+}

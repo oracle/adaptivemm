@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "meminfo long long setting = threshold",
+			"causes": [
+				{
+					"name": "meminfo",
+					"args": {
+						"meminfo_file": "050-cause-meminfo_eq.setting",
+						"field": "MemFree",
+						"threshold": 505295815680,
+						"operator": "equal"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

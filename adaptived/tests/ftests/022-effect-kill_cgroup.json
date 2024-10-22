@@ -1,0 +1,22 @@
+{
+	"rules": [
+		{
+			"name": "Kill all processes in a cgroup",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_cgroup",
+					"args": {
+						"cgroup": "./test022cgroup"
+					}
+				}
+			]
+		}
+	]
+}

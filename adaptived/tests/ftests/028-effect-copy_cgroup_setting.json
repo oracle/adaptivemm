@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "copy cgroup setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "copy_cgroup_setting",
+					"args": {
+						"from_setting": "./test028_from.cgroup",
+						"to_setting": "./test028_to.cgroup",
+						"dont_copy_if_zero": true,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

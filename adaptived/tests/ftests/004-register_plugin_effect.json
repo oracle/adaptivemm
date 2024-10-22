@@ -1,0 +1,52 @@
+{
+	"rules": [
+		{
+			"name": "Wait for 6 cycles in total.  Should trip",
+			"causes": [
+				{
+					"name": "tod",
+					"args": {
+						"time": "00:00:04",
+						"operator": "greaterthan"
+					}
+				},
+				{
+					"name": "days_of_the_week",
+					"args": {
+						"days": [
+							{
+								"day": "sunday"
+							},
+							{
+								"day": "monday"
+							},
+							{
+								"day": "tuesday"
+							},
+							{
+								"day": "wednesday"
+							},
+							{
+								"day": "thursday"
+							},
+							{
+								"day": "friday"
+							},
+							{
+								"day": "saturday"
+							}
+						]
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "tod_validate",
+					"args": {
+						"return_value": 123
+					}
+				}
+			]
+		}
+	]
+}

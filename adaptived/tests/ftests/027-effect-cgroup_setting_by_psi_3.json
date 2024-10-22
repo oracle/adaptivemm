@@ -1,0 +1,28 @@
+{
+	"rules": [
+		{
+			"name": "Set cpu.shares in the cgroup with highest psi usage",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting_by_psi",
+					"args": {
+						"cgroup": "./test027cgroup*",
+						"type": "cpu",
+						"measurement": "some-avg60",
+						"pressure_operator": "greaterthan",
+						"setting": "cpu.weight",
+						"value": 75,
+						"setting_operator": "set"
+					}
+				}
+			]
+		}
+	]
+}
