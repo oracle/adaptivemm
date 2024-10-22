@@ -1,0 +1,24 @@
+{
+	"rules": [
+		{
+			"name": "Ensure the snooze effect silences effects as expected",
+			"causes": [
+				{
+					"name": "time_of_day",
+					"args": {
+						"time": "00:00:01",
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "snooze",
+					"args": {
+						"duration": 4000
+					}
+				}
+			]
+		}
+	]
+}

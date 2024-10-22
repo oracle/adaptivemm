@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "Set an integer setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "./test055.setting",
+						"value": 1133557799,
+						"operator": "set",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,30 @@
+#
+# Action to setup the adaptived directory
+#
+# Note: based on libcgroup's setup-libcgroup/action.yml
+#
+# Copyright (c) 2020-2024 Oracle and/or its affiliates.
+# Author: Tom Hromatka <tom.hromatka@oracle.com>
+#
+
+name: Setup the adaptived directory
+description: "Install dependencies, git clone, bootstrap, configure, and make adaptived"
+runs:
+  using: "composite"
+  steps:
+  - run: |
+      while sudo fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock >/dev/null 2>&1; do sleep 3; done
+      sudo apt-get update
+    shell: bash
+  - run: |
+      while sudo fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock >/dev/null 2>&1; do sleep 3; done
+      sudo apt-get install libjson-c-dev lcov cmake bison flex autoconf automake libtool libsystemd-dev -y
+    shell: bash
+  - run: cd adaptived && ./autogen.sh
+    shell: bash
+  - run: cd adaptived && CFLAGS="$CFLAGS -g -O0 -Werror" ./configure --enable-code-coverage
+    shell: bash
+  - run: cd adaptived && make
+    shell: bash
+  - run: lcov -i -d . -c -o lcov.base
+    shell: bash

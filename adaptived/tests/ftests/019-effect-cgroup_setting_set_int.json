@@ -1,0 +1,24 @@
+{
+	"rules": [
+		{
+			"name": "Set an integer cgroup setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "./test019.cgroup",
+						"value": 2468,
+						"operator": "set"
+					}
+				}
+			]
+		}
+	]
+}

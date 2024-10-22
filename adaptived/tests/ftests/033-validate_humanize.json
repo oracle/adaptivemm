@@ -1,0 +1,79 @@
+{
+	"rules": [
+		{
+			"name": "copy cgroup setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "copy_cgroup_setting",
+					"args": {
+						"from_setting": "./test033_from.cgroup",
+						"to_setting": "./test033_to.cgroup",
+						"dont_copy_if_zero": true,
+						"validate": true
+					}
+				},
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "add",
+                                                "value": "1024K",
+                                                "validate": true
+                                        }
+                                },
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "add",
+                                                "value": "1g",
+                                                "validate": true
+                                        }
+                                },
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "add",
+                                                "value": "1G",
+                                                "validate": true
+                                        }
+                                },
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "add",
+                                                "value": "0T",
+                                                "validate": true
+                                        }
+                                },
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "subtract",
+                                                "value": "512M",
+                                                "validate": true
+                                        }
+                                },
+				{
+                                        "name": "cgroup_setting",
+                                        "args": {
+                                                "setting": "./test033_to.cgroup",
+                                                "operator": "subtract",
+                                                "value": "512m",
+                                                "validate": true
+                                        }
+                                }
+			]
+		}
+	]
+}

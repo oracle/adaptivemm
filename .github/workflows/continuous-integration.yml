@@ -1,0 +1,155 @@
+# Copyright (c) 2024, Oracle and/or its affiliates.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+# Continuous Integration Workflow for adaptived
+#
+# Note: based on libcgroup's continuous-integration.yml
+#
+
+name: Continuous Integration
+on: ["push", "pull_request"]
+
+jobs:
+  # Doc: https://github.com/redhat-plumbers-in-action/differential-shellcheck#usage
+  differential-shellcheck:
+    name: Differential ShellCheck
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Differential ShellCheck
+        uses: redhat-plumbers-in-action/differential-shellcheck@v4
+        with:
+          severity: warning
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  flake8-lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source repository
+        uses: actions/checkout@v3
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: flake8 Lint
+        uses: reviewdog/action-flake8@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  checkpatch:
+    name: Checkpatch Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: 'Calculate PR commits + 1'
+        run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: ${{ env.PR_FETCH_DEPTH }}
+      - name: Run checkpatch review
+        uses: webispy/checkpatch-action@v9
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+  distcheck:
+    name: Adaptived make distcheck
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: false
+    - name: Initialize the directory
+      uses: ./.github/actions/setup-adaptived
+    - name: Run make distcheck
+      run: cd adaptived && make distcheck
+    - name: Display test logs
+      if: ${{ failure() }}
+      run: |
+        cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-c-wrapper.sh.log
+
+  functional_tests:
+    name: Adaptived Functional Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: false
+    - name: Initialize the directory
+      uses: ./.github/actions/setup-adaptived
+    - name: Run functional tests
+      run: cd adaptived && make check
+    - name: Display test logs
+      if: ${{ always() }}
+      run: |
+        cat adaptived/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
+    - name: Archive test logs
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: Adaptived functional test logs
+        path: adaptived/tests/*/*.log
+    - name: Collate code coverage results
+      uses: ./.github/actions/code-coverage
+    - name: Upload code coverage results
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./lcov.total
+        flag-name: "Adaptived Functional Tests"
+        parallel: True
+    - name: Archive code coverage results
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: Adaptived Functional Tests Code Coverage
+        path: lcov.*
+
+  finalize:
+    name: Finalize the test run
+    if: ${{ always() }}
+    needs: [functional_tests]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Finalize code coverage results
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: True

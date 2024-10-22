@@ -1,0 +1,33 @@
+{
+	"rules": [
+		{
+			"name": "Periodically save off the contents of various files",
+			"causes": [
+				{
+					"name": "periodic",
+					"description": "period is in milliseconds",
+					"args": {
+						"period": 1000
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "logger",
+					"args": {
+						"logfile": "mem.log",
+						"max_file_size": 128,
+						"files": [
+							{
+								"file": "test043_test_file1.txt"
+							},
+							{
+								"file": "test043_test_file2.txt"
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}

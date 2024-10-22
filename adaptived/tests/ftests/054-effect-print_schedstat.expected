@@ -1,0 +1,241 @@
+Timestamp (jiffies/ticks): 6037440866:
+CPU0:
+	Number of wakeups from this CPU: 12755074
+	Number of wakeups to this CPU:  4114542
+	Total task run time (nanoseconds):  44364538015765
+	Total task wait time (nanoseconds):  408312389517
+	Number of timeslices on this CPU:  441756650
+Domain0:
+	Number of remote wakeups: 115353
+	Number of affine wakeups: 5607
+Domain1:
+	Number of remote wakeups: 8525179
+	Number of affine wakeups: 1321566
+CPU1:
+	Number of wakeups from this CPU: 2747145
+	Number of wakeups to this CPU:  938576
+	Total task run time (nanoseconds):  11207917802972
+	Total task wait time (nanoseconds):  141685096013
+	Number of timeslices on this CPU:  103647542
+Domain0:
+	Number of remote wakeups: 104138
+	Number of affine wakeups: 8541
+Domain1:
+	Number of remote wakeups: 1704431
+	Number of affine wakeups: 247643
+CPU2:
+	Number of wakeups from this CPU: 14632546
+	Number of wakeups to this CPU:  4574573
+	Total task run time (nanoseconds):  55621022317917
+	Total task wait time (nanoseconds):  614418458603
+	Number of timeslices on this CPU:  543922228
+Domain0:
+	Number of remote wakeups: 131278
+	Number of affine wakeups: 5197
+Domain1:
+	Number of remote wakeups: 9926695
+	Number of affine wakeups: 1507072
+CPU3:
+	Number of wakeups from this CPU: 3537787
+	Number of wakeups to this CPU:  1191323
+	Total task run time (nanoseconds):  9380929502228
+	Total task wait time (nanoseconds):  179875987674
+	Number of timeslices on this CPU:  87980628
+Domain0:
+	Number of remote wakeups: 141453
+	Number of affine wakeups: 17980
+Domain1:
+	Number of remote wakeups: 2205011
+	Number of affine wakeups: 442345
+CPU4:
+	Number of wakeups from this CPU: 16542117
+	Number of wakeups to this CPU:  5184700
+	Total task run time (nanoseconds):  141296917922429
+	Total task wait time (nanoseconds):  940856152641
+	Number of timeslices on this CPU:  579154830
+Domain0:
+	Number of remote wakeups: 304287
+	Number of affine wakeups: 32174
+Domain1:
+	Number of remote wakeups: 11053130
+	Number of affine wakeups: 1753081
+CPU5:
+	Number of wakeups from this CPU: 5086164
+	Number of wakeups to this CPU:  1854442
+	Total task run time (nanoseconds):  39606971096353
+	Total task wait time (nanoseconds):  364760871050
+	Number of timeslices on this CPU:  167192239
+Domain0:
+	Number of remote wakeups: 294994
+	Number of affine wakeups: 61802
+Domain1:
+	Number of remote wakeups: 2936728
+	Number of affine wakeups: 471198
+CPU6:
+	Number of wakeups from this CPU: 19064821
+	Number of wakeups to this CPU:  6471638
+	Total task run time (nanoseconds):  150263969164205
+	Total task wait time (nanoseconds):  1141062127199
+	Number of timeslices on this CPU:  620948990
+Domain0:
+	Number of remote wakeups: 371982
+	Number of affine wakeups: 35088
+Domain1:
+	Number of remote wakeups: 12221201
+	Number of affine wakeups: 1954858
+CPU7:
+	Number of wakeups from this CPU: 5359404
+	Number of wakeups to this CPU:  1970480
+	Total task run time (nanoseconds):  35428861757599
+	Total task wait time (nanoseconds):  239566832889
+	Number of timeslices on this CPU:  146159730
+Domain0:
+	Number of remote wakeups: 359188
+	Number of affine wakeups: 82640
+Domain1:
+	Number of remote wakeups: 3029736
+	Number of affine wakeups: 530788
+CPU8:
+	Number of wakeups from this CPU: 18542876
+	Number of wakeups to this CPU:  6028775
+	Total task run time (nanoseconds):  90898330087562
+	Total task wait time (nanoseconds):  874245132339
+	Number of timeslices on this CPU:  698130398
+Domain0:
+	Number of remote wakeups: 101803
+	Number of affine wakeups: 5635
+Domain1:
+	Number of remote wakeups: 12412298
+	Number of affine wakeups: 1963857
+CPU9:
+	Number of wakeups from this CPU: 1778718
+	Number of wakeups to this CPU:  521737
+	Total task run time (nanoseconds):  8274479521101
+	Total task wait time (nanoseconds):  113502649232
+	Number of timeslices on this CPU:  75332259
+Domain0:
+	Number of remote wakeups: 88276
+	Number of affine wakeups: 10874
+Domain1:
+	Number of remote wakeups: 1168705
+	Number of affine wakeups: 145850
+CPU10:
+	Number of wakeups from this CPU: 17429906
+	Number of wakeups to this CPU:  5164748
+	Total task run time (nanoseconds):  80243206483910
+	Total task wait time (nanoseconds):  580925360545
+	Number of timeslices on this CPU:  618582967
+Domain0:
+	Number of remote wakeups: 93248
+	Number of affine wakeups: 4182
+Domain1:
+	Number of remote wakeups: 12171910
+	Number of affine wakeups: 1804363
+CPU11:
+	Number of wakeups from this CPU: 1398746
+	Number of wakeups to this CPU:  352069
+	Total task run time (nanoseconds):  8786080279149
+	Total task wait time (nanoseconds):  175257818796
+	Number of timeslices on this CPU:  80148397
+Domain0:
+	Number of remote wakeups: 74122
+	Number of affine wakeups: 12505
+Domain1:
+	Number of remote wakeups: 972555
+	Number of affine wakeups: 114318
+CPU12:
+	Number of wakeups from this CPU: 11675875
+	Number of wakeups to this CPU:  3053513
+	Total task run time (nanoseconds):  56525551701231
+	Total task wait time (nanoseconds):  633142656790
+	Number of timeslices on this CPU:  432527730
+Domain0:
+	Number of remote wakeups: 4117116
+	Number of affine wakeups: 1088577
+Domain1:
+	Number of remote wakeups: 4505246
+	Number of affine wakeups: 295481
+CPU13:
+	Number of wakeups from this CPU: 10325249
+	Number of wakeups to this CPU:  3261347
+	Total task run time (nanoseconds):  48712060061604
+	Total task wait time (nanoseconds):  676010987422
+	Number of timeslices on this CPU:  394579860
+Domain0:
+	Number of remote wakeups: 3928909
+	Number of affine wakeups: 919183
+Domain1:
+	Number of remote wakeups: 3134993
+	Number of affine wakeups: 221215
+CPU14:
+	Number of wakeups from this CPU: 8142512
+	Number of wakeups to this CPU:  2056463
+	Total task run time (nanoseconds):  41149436189137
+	Total task wait time (nanoseconds):  434815380686
+	Number of timeslices on this CPU:  317996924
+Domain0:
+	Number of remote wakeups: 3669442
+	Number of affine wakeups: 836840
+Domain1:
+	Number of remote wakeups: 2416607
+	Number of affine wakeups: 187394
+CPU15:
+	Number of wakeups from this CPU: 6483698
+	Number of wakeups to this CPU:  1534461
+	Total task run time (nanoseconds):  35161497374103
+	Total task wait time (nanoseconds):  363849759068
+	Number of timeslices on this CPU:  264569816
+Domain0:
+	Number of remote wakeups: 3049359
+	Number of affine wakeups: 766700
+Domain1:
+	Number of remote wakeups: 1899878
+	Number of affine wakeups: 161962
+CPU16:
+	Number of wakeups from this CPU: 4241499
+	Number of wakeups to this CPU:  1092928
+	Total task run time (nanoseconds):  22222085829523
+	Total task wait time (nanoseconds):  459990108253
+	Number of timeslices on this CPU:  214768632
+Domain0:
+	Number of remote wakeups: 1314550
+	Number of affine wakeups: 317521
+Domain1:
+	Number of remote wakeups: 1834021
+	Number of affine wakeups: 161067
+CPU17:
+	Number of wakeups from this CPU: 2854413
+	Number of wakeups to this CPU:  724788
+	Total task run time (nanoseconds):  22476418603452
+	Total task wait time (nanoseconds):  419542718964
+	Number of timeslices on this CPU:  223823838
+Domain0:
+	Number of remote wakeups: 982759
+	Number of affine wakeups: 216449
+Domain1:
+	Number of remote wakeups: 1146866
+	Number of affine wakeups: 102040
+CPU18:
+	Number of wakeups from this CPU: 2414440
+	Number of wakeups to this CPU:  575298
+	Total task run time (nanoseconds):  21862181641620
+	Total task wait time (nanoseconds):  411934728524
+	Number of timeslices on this CPU:  213636087
+Domain0:
+	Number of remote wakeups: 867790
+	Number of affine wakeups: 201726
+Domain1:
+	Number of remote wakeups: 971352
+	Number of affine wakeups: 88157
+CPU19:
+	Number of wakeups from this CPU: 2090481
+	Number of wakeups to this CPU:  476180
+	Total task run time (nanoseconds):  21416282687499
+	Total task wait time (nanoseconds):  421265610974
+	Number of timeslices on this CPU:  207328014
+Domain0:
+	Number of remote wakeups: 737770
+	Number of affine wakeups: 177219
+Domain1:
+	Number of remote wakeups: 876531
+	Number of affine wakeups: 79034

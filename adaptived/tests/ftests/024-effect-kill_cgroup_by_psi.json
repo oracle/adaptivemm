@@ -1,0 +1,24 @@
+{
+	"rules": [
+		{
+			"name": "Kill cgroup with highest psi usage",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_cgroup_by_psi",
+					"args": {
+						"cgroup": "./test024cgroup*",
+						"measurement": "some-avg10",
+						"type": "cpu"
+					}
+				}
+			]
+		}
+	]
+}

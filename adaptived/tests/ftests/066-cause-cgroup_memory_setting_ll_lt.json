@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "Cgroup long long memory setting < threshold",
+			"causes": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "066-cause-cgroup_memory_setting.setting",
+						"threshold": 6000,
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 66
+					}
+				}
+			]
+		}
+	]
+}

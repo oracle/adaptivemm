@@ -1,0 +1,30 @@
+{
+	"rules": [
+		{
+			"name": "Increase memory.high in the cgroup with highest psi usage",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting_by_psi",
+					"args": {
+						"cgroup": "./test026cgroup*",
+						"type": "memory",
+						"measurement": "full-avg300",
+						"pressure_operator": "greaterthan",
+						"setting": "memory.high",
+						"value": 1,
+						"setting_operator": "add",
+						"limit": 1003,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

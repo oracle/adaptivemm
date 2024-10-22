@@ -1,0 +1,27 @@
+{
+	"rules": [
+		{
+			"name": "pressure above test.",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "007-cause-avg300_pressure_above.pressure",
+						"threshold": 50,
+						"duration": 3,
+						"operator": "greaterthan",
+						"measurement": "some-avg300"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 42
+					}
+				}
+			]
+		}
+	]
+}

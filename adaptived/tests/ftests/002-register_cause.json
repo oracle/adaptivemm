@@ -1,0 +1,35 @@
+{
+	"rules": [
+		{
+			"name": "Wait for 6 cycles in total.  Should trip",
+			"causes": [
+				{
+					"name": "wait_cause",
+					"args": {
+						"wait": 2
+					}
+				},
+				{
+					"name": "wait_cause",
+					"args": {
+						"wait": 5
+					}
+				},
+				{
+					"name": "wait_cause",
+					"args": {
+						"wait": 6
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 123
+					}
+				}
+			]
+		}
+	]
+}

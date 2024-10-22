@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "memory.stat long long setting == threshold",
+			"causes": [
+				{
+					"name": "memory.stat",
+					"args": {
+						"stat_file": "060-memory.stat",
+						"field": "pgmajfault",
+						"threshold": 123456781,
+						"operator": "equal"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 3456
+					}
+				}
+			]
+		}
+	]
+}

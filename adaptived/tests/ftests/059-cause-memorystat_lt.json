@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "memory.stat long long setting < threshold",
+			"causes": [
+				{
+					"name": "memory.stat",
+					"args": {
+						"stat_file": "059-memory.stat",
+						"field": "workingset_nodereclaim",
+						"threshold": "10G",
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 2345
+					}
+				}
+			]
+		}
+	]
+}
