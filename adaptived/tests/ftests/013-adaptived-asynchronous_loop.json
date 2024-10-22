@@ -1,0 +1,11 @@
+{
+	"rules": [
+		{
+			"name": "Empty set of rules.  Will never trigger",
+			"causes": [
+			],
+			"effects": [
+			]
+		}
+	]
+}

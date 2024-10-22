@@ -1,0 +1,34 @@
+{
+	"rules": [
+		{
+			"name": "Add to an integer cgroup memory setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "./test045.cgroup",
+						"value": "max",
+						"operator": "set",
+						"validate": true
+					}
+				},
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "./test045.cgroup",
+						"value": 5,
+						"operator": "add",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

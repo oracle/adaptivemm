@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "memory.stat long long setting > threshold",
+			"causes": [
+				{
+					"name": "memory.stat",
+					"args": {
+						"stat_file": "058-memory.stat",
+						"field": "slab_reclaimable",
+						"threshold": "1M",
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 1234
+					}
+				}
+			]
+		}
+	]
+}

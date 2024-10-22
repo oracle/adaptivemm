@@ -1,0 +1,3 @@
+[submodule "adaptived/googletest"]
+	path = adaptived/googletest
+	url = https://github.com/google/googletest.git

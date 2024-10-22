@@ -1,0 +1,36 @@
+{
+	"rules": [
+		{
+			"name": "Attempt to add an integer to a cgroup setting at infinity via sd_bus",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1004.slice",
+						"setting": "MemoryLow",
+						"value": "infinity",
+						"operator": "set",
+						"validate": true
+					}
+				},
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1004.slice",
+						"setting": "MemoryLow",
+						"value": 4096,
+						"operator": "add",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

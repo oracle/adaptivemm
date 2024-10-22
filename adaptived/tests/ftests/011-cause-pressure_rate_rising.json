@@ -1,0 +1,28 @@
+{
+	"rules": [
+		{
+			"name": "pressure rising above test.",
+			"causes": [
+				{
+					"name": "pressure_rate",
+					"args": {
+						"pressure_file": "011-cause-pressure_rate_rising.pressure",
+						"threshold": 53.5,
+						"window_size": 30000,
+						"action": "rising",
+						"advanced_warning": 10000,
+						"measurement": "full-avg60"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 64
+					}
+				}
+			]
+		}
+	]
+}

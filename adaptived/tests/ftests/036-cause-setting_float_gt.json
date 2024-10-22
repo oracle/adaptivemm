@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "float setting > threshold",
+			"causes": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "036-cause-setting.setting",
+						"threshold": 42.51,
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 67
+					}
+				}
+			]
+		}
+	]
+}

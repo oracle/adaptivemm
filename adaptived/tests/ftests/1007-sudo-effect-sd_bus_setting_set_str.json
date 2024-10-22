@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Set a string property via sd_bus",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1007.slice",
+						"setting": "DevicePolicy",
+						"value": "closed",
+						"operator": "set",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "Cgroup float setting < threshold",
+			"causes": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "032-cause-cgroup_setting.setting",
+						"threshold": 1.9945,
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 68
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,6 @@
+__pycache__/
+*.log
+*.pressure
+*.trs
+test[0-9]*
+sudo1[0-9]*

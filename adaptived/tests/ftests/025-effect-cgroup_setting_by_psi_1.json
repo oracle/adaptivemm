@@ -1,0 +1,30 @@
+{
+	"rules": [
+		{
+			"name": "Reduce memory.high in the cgroup with lowest psi usage",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting_by_psi",
+					"args": {
+						"cgroup": "./test025cgroup*",
+						"type": "memory",
+						"measurement": "full-avg300",
+						"pressure_operator": "lessthan",
+						"setting": "memory.high",
+						"value": 1,
+						"setting_operator": "subtract",
+						"limit": 998,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

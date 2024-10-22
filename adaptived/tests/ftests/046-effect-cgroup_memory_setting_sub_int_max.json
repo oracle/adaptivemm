@@ -1,0 +1,34 @@
+{
+	"rules": [
+		{
+			"name": "Subtract from an integer cgroup memory setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "./test046.cgroup",
+						"value": "max",
+						"operator": "set",
+						"validate": true
+					}
+				},
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "./test046.cgroup",
+						"value": 1024,
+						"operator": "subtract",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

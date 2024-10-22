@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "Run the print_schedstat effect",
+			"causes": [
+				{
+					"name": "periodic",
+					"description": "period is in milliseconds",
+					"args": {
+						"period": 1000
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print_schedstat",
+					"args": {
+						"file": "stdout",
+						"schedstat_file": "054-effect-print_schedstat.schedstat"
+					}
+				}
+			]
+		}
+	]
+}

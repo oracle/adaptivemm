@@ -1,0 +1,31 @@
+{
+	"rules": [
+		{
+			"name": "Kill up to 6 memory hogs",
+			"causes": [
+				{
+					"name": "meminfo",
+					"args": {
+						"meminfo_file": "067-effect-kill_processes.setting",
+						"field": "MemFree",
+						"threshold": "493452943K",
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_processes",
+					"args": {
+						"proc_names": [
+							{ "name": "067_process" },
+							{ "name": "foo" }
+						],
+						"count": 6,
+						"field": "vsize"
+					}
+				}
+			]
+		}
+	]
+}
