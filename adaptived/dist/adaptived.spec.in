@@ -1,0 +1,79 @@
+Name:           adaptived
+Version:        @PACKAGE_VERSION@
+Release:        1%{?dist}
+Summary:        Adaptived cause-and-effect daemon
+License:        GPLv2
+URL:            https://linux-git.oraclecorp.com/thromatk/adaptived
+Source0:        %{url}/releases/download/v%{version}/%{name}-%{version}.tar.gz
+
+# Backports from upstream
+
+BuildRequires: json-c, json-c-devel, systemd, systemd-devel
+BuildRequires:  gcc
+BuildRequires:  gperf
+BuildRequires:  make
+Requires: json-c, systemd
+
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+
+%description
+Adaptived is a simple cause-and-effect daemon for the Linux operating system.  It
+is designed to allow a user to construct a series of rules to automate tasks.
+
+# 
+# The devel package is intentionally disabled at present
+#
+# package devel
+# Summary:        Development files used to build applications that directly interact with the adaptived C APIs
+# Requires:       %{name}%{?_isa} = %{version}-%{release}
+# 
+# %description devel
+# Adaptived is a simple cause-and-effect daemon for the Linux operating system.  It
+# is designed to allow a user to construct a series of rules to automate tasks.
+# The adaptived C API allows for the creation of custom causes and effects.
+# Rules can also be added and deleted at runtime.  Finally, adaptived settings,
+# e.g. logging level, can be changed at runtime.
+
+%prep
+%autosetup -p1
+
+%build
+%configure
+%make_build
+
+%install
+mkdir -p %{buildroot}/%{_sbindir}
+mkdir -p %{buildroot}/%{_libdir}
+mkdir -p %{buildroot}/%{_includedir}
+mkdir -p %{buildroot}/%{_mandir}
+
+%make_install
+
+rm -f %{buildroot}/%{_libdir}/libadaptived.a
+
+# Since the devel RPM is disabled, delete its files
+rm -f %{buildroot}/%{_includedir}/adaptived.h
+rm -f %{buildroot}/%{_includedir}/adaptived-utils.h
+rm -f %{buildroot}/%{_libdir}/libadaptived.so*
+rm -f %{buildroot}/%{_libdir}/libadaptived.la*
+
+%check
+
+%make_build check
+
+%files
+%license LICENSE.txt THIRD_PARTY_LICENSES.txt
+%doc CONTRIBUTING.md README.md SECURITY.md
+%{_sbindir}/adaptived
+
+# %files devel
+# %{_includedir}/adaptived.h
+# %{_includedir}/adaptived-utils.h
+# %{_libdir}/libadaptived.so*
+# %{_libdir}/libadaptived.la*
+
+%changelog
+* Fri Oct 18 2024 Tom Hromatka <tom.hromatka@oracle.com>
+- Disable devel package
+* Wed Oct 16 2024 Tom Hromatka <tom.hromatka@oracle.com>, George Kennedy <george.kennedy@oracle.com> 0.0.0
+- Initial version

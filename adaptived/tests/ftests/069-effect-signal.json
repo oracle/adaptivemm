@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Send a signal to some processes",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "signal",
+					"args": {
+						"proc_names": [
+							{ "name": "069_process" },
+							{ "name": "foo" }
+						],
+						"signal": 2
+					}
+				}
+			]
+		}
+	]
+}

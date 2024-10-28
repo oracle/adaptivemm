@@ -1,0 +1,27 @@
+{
+	"rules": [
+		{
+			"name": "pressure above test.",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "008-cause-pressure_above_total.pressure",
+						"threshold": 1234567890,
+						"duration": 3,
+						"operator": "greaterthan",
+						"measurement": "full-total"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 43
+					}
+				}
+			]
+		}
+	]
+}

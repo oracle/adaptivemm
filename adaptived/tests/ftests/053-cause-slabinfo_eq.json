@@ -1,0 +1,27 @@
+{
+	"rules": [
+		{
+			"name": "slabinfo long long setting = threshold",
+			"causes": [
+				{
+					"name": "slabinfo",
+					"args": {
+						"slabinfo_file": "053-cause-slabinfo_eq.setting",
+						"field": "kmalloc-32",
+						"column": "<num_objs>",
+						"threshold": 172484,
+						"operator": "equal"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,28 @@
+{
+	"rules": [
+		{
+			"name": "top memory field setting < threshold",
+			"causes": [
+				{
+					"name": "top",
+					"args": {
+						"component": "mem",
+						"meminfo_file": "064-cause-top_mem_lt.setting",
+						"field": "total",
+						"threshold": "527700340K",
+						"display": true,
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

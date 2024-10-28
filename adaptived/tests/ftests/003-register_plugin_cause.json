@@ -1,0 +1,31 @@
+{
+	"rules": [
+		{
+			"name": "Wait for 6 cycles in total.  Should trip",
+			"causes": [
+				{
+					"name": "tod",
+					"args": {
+						"time": "00:00:05",
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Test 003 tripped successfully\n"
+					}
+				},
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 123
+					}
+				}
+			]
+		}
+	]
+}

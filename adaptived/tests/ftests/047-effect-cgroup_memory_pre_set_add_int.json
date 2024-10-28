@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Add to an integer cgroup memory setting after pre_set_from",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"pre_set_from": "./test047_from.cgroup",
+						"setting": "./test047.cgroup",
+						"value": 1,
+						"operator": "add",
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

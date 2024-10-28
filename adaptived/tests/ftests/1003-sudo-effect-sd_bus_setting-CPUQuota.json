@@ -1,0 +1,34 @@
+{
+	"rules": [
+		{
+			"name": "Set CPUQuota & CPUQuotaPeriodSec via sd_bus",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1003.slice",
+						"setting": "CPUQuotaPeriodSec",
+						"value": "1s",
+						"operator": "set"
+					}
+				},
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "sudo1003.slice",
+						"setting": "CPUQuota",
+						"value": "44%",
+						"operator": "set"
+					}
+				}
+			]
+		}
+	]
+}

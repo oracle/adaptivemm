@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Add to an integer setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "./test056.setting",
+						"value": 1000,
+						"operator": "add",
+						"limit": 1979,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

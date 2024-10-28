@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "pressure falling below test.",
+			"causes": [
+				{
+					"name": "pressure_rate",
+					"args": {
+						"pressure_file": "012-cause-pressure_rate_falling.pressure",
+						"threshold": 80.0,
+						"action": "falling",
+						"measurement": "some-avg10"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 72
+					}
+				}
+			]
+		}
+	]
+}

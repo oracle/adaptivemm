@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Subtract from an integer setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "./test057.setting",
+						"value": 12345,
+						"operator": "subtract",
+						"limit": 22222222,
+						"validate": true
+					}
+				}
+			]
+		}
+	]
+}

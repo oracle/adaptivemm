@@ -1,0 +1,28 @@
+{
+	"rules": [
+		{
+			"name": "top cpu field setting < threshold",
+			"causes": [
+				{
+					"name": "top",
+					"args": {
+						"stat_file": "062-cause-top_cpu_lt.setting",
+						"component": "cpu",
+						"field": "idle",
+						"threshold": 91.0,
+						"display": true,
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

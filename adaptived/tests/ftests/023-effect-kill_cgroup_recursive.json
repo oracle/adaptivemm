@@ -1,0 +1,22 @@
+{
+	"rules": [
+		{
+			"name": "Recursively kill processes in a cgroup hierarchy",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_cgroup",
+					"args": {
+						"cgroup": "./test023cgroup*"
+					}
+				}
+			]
+		}
+	]
+}

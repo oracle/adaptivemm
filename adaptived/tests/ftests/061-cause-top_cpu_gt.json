@@ -1,0 +1,28 @@
+{
+	"rules": [
+		{
+			"name": "top cpu field setting > threshold",
+			"causes": [
+				{
+					"name": "top",
+					"args": {
+						"stat_file": "061-cause-top_cpu_gt.setting",
+						"component": "cpu",
+						"field": "user",
+						"threshold": 99.2,
+						"display": true,
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}

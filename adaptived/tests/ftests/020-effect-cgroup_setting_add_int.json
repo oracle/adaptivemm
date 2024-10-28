@@ -1,0 +1,26 @@
+{
+	"rules": [
+		{
+			"name": "Add to an integer cgroup setting",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "./test020.cgroup",
+						"value": 5,
+						"operator": "add",
+						"limit": 627,
+						"validate": false
+					}
+				}
+			]
+		}
+	]
+}

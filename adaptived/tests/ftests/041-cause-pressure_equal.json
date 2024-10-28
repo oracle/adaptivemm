@@ -1,0 +1,27 @@
+{
+	"rules": [
+		{
+			"name": "pressure equal test.",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "041-cause-pressure_equal.pressure",
+						"threshold": 1234567890,
+						"duration": 3,
+						"operator": "equal",
+						"measurement": "full-total"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 43
+					}
+				}
+			]
+		}
+	]
+}

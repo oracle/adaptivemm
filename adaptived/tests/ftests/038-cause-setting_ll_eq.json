@@ -1,0 +1,25 @@
+{
+	"rules": [
+		{
+			"name": "long long setting == threshold",
+			"causes": [
+				{
+					"name": "setting",
+					"args": {
+						"setting": "038-cause-setting.setting",
+						"threshold": 5,
+						"operator": "equal"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "validate",
+					"args": {
+						"return_value": 65
+					}
+				}
+			]
+		}
+	]
+}
