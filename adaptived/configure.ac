@@ -92,6 +92,11 @@ AC_CONFIG_FILES([
 AC_CONFIG_FILES([dist/adaptived.spec:dist/adaptived.spec.in])
 
 dnl #
+dnl # if cgroup v1, exclude cgroup v2 tests
+dnl #
+AM_CONDITIONAL([CGV2], [test `grep ^cgroup2 /proc/mounts |awk '{print $1}'` = "cgroup2"])
+
+dnl #
 dnl # generate the configure and makefiles
 dnl #
 AC_OUTPUT

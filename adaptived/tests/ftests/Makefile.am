@@ -184,15 +184,20 @@ check_PROGRAMS = \
 	test066 \
 	test067 \
 	test068 \
-	test069 \
-	sudo1000 \
-	sudo1001 \
-	sudo1002 \
-	sudo1003 \
-	sudo1004 \
-	sudo1005 \
-	sudo1006 \
-	sudo1007
+	test069
+
+if CGV2
+check_PROGRAMS += sudo1000
+check_PROGRAMS += sudo1001
+check_PROGRAMS += sudo1002
+check_PROGRAMS += sudo1003
+check_PROGRAMS += sudo1004
+check_PROGRAMS += sudo1005
+check_PROGRAMS += sudo1006
+check_PROGRAMS += sudo1007
+else
+$(warning WARNING: cgroup v2 is not enabled. Some tests excluded.)
+endif
 
 EXTRA_DIST_PYTHON_TESTS = \
 	001-cause-time_of_day.py \
@@ -296,7 +301,7 @@ EXTRA_DIST = \
 clean-local: clean-local-check
 .PHONY: clean-local-check
 clean-local-check:
-	-rm -f *.pyc
+	-rm -f *.pyc sudo*
 
 check-build:
 	${MAKE} ${AM_MAKEFLAGS} ${check_PROGRAMS}
