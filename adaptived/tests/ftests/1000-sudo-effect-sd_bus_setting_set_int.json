@@ -14,7 +14,7 @@
 					"name": "sd_bus_setting",
 					"args": {
 						"target": "sudo1000.slice",
-						"setting": "MemoryLow",
+						"setting": "MemoryMax",
 						"value": 89997312,
 						"operator": "set",
 						"validate": true
