@@ -80,4 +80,8 @@ int start_slice(const char *slice_name, const char *cmd_to_run);
 int start_unit(const char *unit_name, const char *cmd_to_run);
 int stop_transient(const char *transient_name);
 
+int get_cgroup_version(int * const version);
+int build_cgroup_path(const char * const controller, const char * const cgrp, char ** path);
+int build_systemd_cgroup_path(const char * const cgrp, char ** path);
+
 #endif /* __ADAPTIVED_FTESTS_H */
