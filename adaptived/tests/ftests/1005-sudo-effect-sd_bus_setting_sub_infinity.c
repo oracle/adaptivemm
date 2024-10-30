@@ -39,15 +39,14 @@
 #define EXPECTED_RET -ETIME
 
 static const char * const cgroup_slice_name = "sudo1005.slice";
-static const char * const cgroup_slice = "/sys/fs/cgroup/sudo1005.slice";
-static const char * const cgroup_file = "/sys/fs/cgroup/sudo1005.slice/memory.low";
 static long long expected_value;
 
 int main(int argc, char *argv[])
 {
+	char *cgrp_path = NULL, *cgrp_file = NULL;
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
-	int ret, items;
+	int ret, items, version;
         int br;
         char buf[FILENAME_MAX];
         long long memtotal;
@@ -101,18 +100,42 @@ int main(int argc, char *argv[])
         memtotal *= 1024;
 
         expected_value = memtotal - 4096;
-        ret = verify_ll_file(cgroup_file, expected_value);
-        if (ret)
-                goto err;
+
+	ret = get_cgroup_version(&version);
+	if (ret < 0)
+		goto err;
+
+	if (version == 1)
+		ret = build_cgroup_path("memory", cgroup_slice_name, &cgrp_path);
+	else if (version == 2)
+		ret = build_cgroup_path(NULL, cgroup_slice_name, &cgrp_path);
+	if (ret < 0)
+		goto err;
+
+	ret = build_systemd_memory_max_file(cgrp_path, &cgrp_file);
+	if (ret < 0)
+		goto err;
+
+	ret = verify_ll_file(cgrp_file, expected_value);
+	if (ret)
+		goto err;
 
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_PASSED;
 
 err:
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_HARD_ERROR;
 }
