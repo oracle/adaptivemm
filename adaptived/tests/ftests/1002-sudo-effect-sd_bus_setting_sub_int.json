@@ -14,7 +14,7 @@
 					"name": "sd_bus_setting",
 					"args": {
 						"target": "sudo1002.slice",
-						"setting": "MemoryLow",
+						"setting": "MemoryMax",
 						"value": 89997312,
 						"operator": "set"
 					}
@@ -23,7 +23,7 @@
 					"name": "sd_bus_setting",
 					"args": {
 						"target": "sudo1002.slice",
-						"setting": "MemoryLow",
+						"setting": "MemoryMax",
 						"value": 4096,
 						"operator": "subtract",
 						"validate": true
