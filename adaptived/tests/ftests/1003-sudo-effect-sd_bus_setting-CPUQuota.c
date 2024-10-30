@@ -39,16 +39,16 @@
 #define EXPECTED_RET -ETIME
 
 static const char * const cgroup_slice_name = "sudo1003.slice";
-static const char * const cgroup_file = "/sys/fs/cgroup/sudo1003.slice/cpu.max";
 static const int expected_quota = 440000;
 static const int expected_period = 1000000;
 
 int main(int argc, char *argv[])
 {
+	char *cgrp_path = NULL, *cgrp_file = NULL;
 	char config_path[FILENAME_MAX];
 	char expected_buf[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
-	int ret;
+	int ret, version, read_value;
 	FILE * fp;
 	char * line = NULL;
 	size_t len = 0;
@@ -82,21 +82,88 @@ int main(int argc, char *argv[])
 	if (ret != EXPECTED_RET)
 		goto err;
 
-	fp = fopen(cgroup_file, "r");
-	if (fp == NULL)
+	ret = get_cgroup_version(&version);
+	if (ret < 0)
 		goto err;
 
-	read = getline(&line, &len, fp);
-	fclose(fp);
-	sprintf(expected_buf, "%d %d\n", expected_quota, expected_period);
-	if (strcmp(line, expected_buf) != 0) {
-		adaptived_err("sudo1003: got %s, expected %s\n", line, expected_buf);
-		goto err;
+	if (version == 1) {
+		ret = build_cgroup_path("cpu", cgroup_slice_name, &cgrp_path);
+		if (ret < 0)
+			goto err;
+
+		len = strlen(cgrp_path) + 1 + strlen("cpu.cfs_period_us") + 1;
+		cgrp_file = malloc(sizeof(char) * len);
+
+		memset(cgrp_file, 0, sizeof(cgrp_file));
+
+		sprintf(cgrp_file, "%s/cpu.cfs_period_us", cgrp_path);
+
+		fp = fopen(cgrp_file, "r");
+		if (!fp)
+			goto err;
+
+		read = getline(&line, &len, fp);
+		fclose(fp);
+
+		read_value = atoi(line);
+		if (read_value < 1)
+			goto err;
+
+		if (read_value != expected_period)
+			goto err;
+
+		memset(cgrp_file, 0, sizeof(cgrp_file));
+
+		sprintf(cgrp_file, "%s/cpu.cfs_quota_us", cgrp_path);
+
+		fp = fopen(cgrp_file, "r");
+		if (!fp)
+			goto err;
+
+		read = getline(&line, &len, fp);
+		fclose(fp);
+
+		read_value = atoi(line);
+		if (read_value < 1)
+			goto err;
+
+		if (read_value != expected_quota)
+			goto err;
+	} else if (version == 2) {
+		ret = build_cgroup_path(NULL, cgroup_slice_name, &cgrp_path);
+		if (ret < 0)
+			goto err;
+
+		sprintf(expected_buf, "%d %d\n", expected_quota, expected_period);
+
+		len = strlen(cgrp_path) + 1 + strlen("cpu.max") + 1;
+		cgrp_file = malloc(sizeof(char) * len);
+
+		memset(cgrp_file, 0, sizeof(cgrp_file));
+
+		sprintf(cgrp_file, "%s/cpu.max", cgrp_path);
+
+		fp = fopen(cgrp_file, "r");
+		if (fp == NULL)
+			goto err;
+
+		read = getline(&line, &len, fp);
+		fclose(fp);
+
+		if (strcmp(line, expected_buf) != 0) {
+			adaptived_err("sudo1003: got %s, expected %s\n", line, expected_buf);
+			goto err;
+		}
 	}
+
 	if (line)
 		free(line);
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_PASSED;
 
@@ -105,6 +172,10 @@ err:
 		free(line);
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_HARD_ERROR;
 }
