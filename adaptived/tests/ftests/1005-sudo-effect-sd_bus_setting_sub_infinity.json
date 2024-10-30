@@ -14,7 +14,7 @@
 					"name": "sd_bus_setting",
 					"args": {
 						"target": "sudo1005.slice",
-						"setting": "MemoryLow",
+						"setting": "MemoryMax",
 						"value": "infinity",
 						"operator": "set",
 						"validate": true
@@ -24,7 +24,7 @@
 					"name": "sd_bus_setting",
 					"args": {
 						"target": "sudo1005.slice",
-						"setting": "MemoryLow",
+						"setting": "MemoryMax",
 						"value": 4096,
 						"operator": "subtract",
 						"validate": true
