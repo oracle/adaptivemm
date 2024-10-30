@@ -83,5 +83,6 @@ int stop_transient(const char *transient_name);
 int get_cgroup_version(int * const version);
 int build_cgroup_path(const char * const controller, const char * const cgrp, char ** path);
 int build_systemd_cgroup_path(const char * const cgrp, char ** path);
+int build_systemd_memory_max_file(const char * const cgrp_path, char **file_path);
 
 #endif /* __ADAPTIVED_FTESTS_H */

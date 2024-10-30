@@ -486,6 +486,43 @@ int build_systemd_cgroup_path(const char * const cgrp, char ** path)
 	return -EINVAL;
 }
 
+int build_systemd_memory_max_file(const char * const cgrp_path, char **file_path)
+{
+	int ret, version;
+	size_t len;
+
+	if (!cgrp_path || !file_path)
+		return -EINVAL;
+
+	*file_path = NULL;
+
+	ret = get_cgroup_version(&version);
+	if (ret < 0)
+		return ret;
+
+	if (version == 1) {
+		len = strlen(cgrp_path) + 1 + strlen("memory.limit_in_bytes") + 1;
+		*file_path = malloc(sizeof(char) * len);
+		if (!(*file_path))
+			return -ENOMEM;
+
+		memset(*file_path, 0, len);
+
+		sprintf(*file_path, "%s/memory.limit_in_bytes", cgrp_path);
+	} else if (version == 2) {
+		len = strlen(cgrp_path) + 1 + strlen("memory.max") + 1;
+		*file_path = malloc(sizeof(char) * len);
+		if (!(*file_path))
+			return -ENOMEM;
+
+		memset(*file_path, 0, len);
+
+		sprintf(*file_path, "%s/memory.max", cgrp_path);
+	}
+
+	return 0;
+}
+
 int start_slice(const char *slice_name, const char *cmd_to_run)
 {
 	char cmdline[FILENAME_MAX];
