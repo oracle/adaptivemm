@@ -39,14 +39,15 @@
 #define EXPECTED_RET 1
 
 static const char * const cgroup_slice_name = "sudo1004.slice";
-static const char * const cgroup_file = "/sys/fs/cgroup/sudo1004.slice/memory.low";
-static const char * expected_value = "max\n";
+static const long long expected_value_v1 = 9223372036854771712;
+static const char * expected_value_v2 = "max\n";
 
 int main(int argc, char *argv[])
 {
+	char *cgrp_path = NULL, *cgrp_file = NULL;
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
-	int ret;
+	int ret, version;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/1004-sudo-effect-sd_bus_setting_add_int_infinity.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';
@@ -76,18 +77,47 @@ int main(int argc, char *argv[])
 	if (ret != EXPECTED_RET)
 		goto err;
 
-	ret = verify_char_file(cgroup_file, expected_value);
-	if (ret)
+	ret = get_cgroup_version(&version);
+	if (ret < 0)
 		goto err;
+
+	if (version == 1)
+		ret = build_cgroup_path("memory", cgroup_slice_name, &cgrp_path);
+	else if (version == 2)
+		ret = build_cgroup_path(NULL, cgroup_slice_name, &cgrp_path);
+	if (ret < 0)
+		goto err;
+
+	ret = build_systemd_memory_max_file(cgrp_path, &cgrp_file);
+	if (ret < 0)
+		goto err;
+
+	if (version == 1) {
+		ret = verify_ll_file(cgrp_file, expected_value_v1);
+		if (ret)
+			goto err;
+	} else if (version == 2) {
+		ret = verify_char_file(cgrp_file, expected_value_v2);
+		if (ret)
+			goto err;
+	}
 
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_PASSED;
 
 err:
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
+	if (cgrp_file)
+		free(cgrp_file);
+	if (cgrp_path)
+		free(cgrp_path);
 
 	return AUTOMAKE_HARD_ERROR;
 }
