@@ -85,8 +85,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
-  distcheck:
-    name: Adaptived make distcheck
+  distcheck_cgv1:
+    name: Adaptived make distcheck v1
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: false
+    - name: Initialize the directory
+      uses: ./.github/actions/setup-adaptived
+    - name: Run make distcheck
+      run: cd adaptived && make distcheck
+    - name: Display test logs
+      if: ${{ failure() }}
+      run: |
+        cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-c-wrapper.sh.log
+
+  distcheck_cgv2:
+    name: Adaptived make distcheck v2
     runs-on: ubuntu-latest
 
     steps:
@@ -103,8 +121,47 @@ jobs:
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-wrapper.sh.log
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-c-wrapper.sh.log
 
-  functional_tests:
-    name: Adaptived Functional Tests
+  functional_tests_cgv1:
+    name: Adaptived Functional Tests v1
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: false
+    - name: Initialize the directory
+      uses: ./.github/actions/setup-adaptived
+    - name: Run functional tests
+      run: cd adaptived && make check
+    - name: Display test logs
+      if: ${{ always() }}
+      run: |
+        cat adaptived/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
+    - name: Archive test logs
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: Adaptived functional test logs
+        path: adaptived/tests/*/*.log
+    - name: Collate code coverage results
+      uses: ./.github/actions/code-coverage
+    - name: Upload code coverage results
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./lcov.total
+        flag-name: "Adaptived Functional Tests"
+        parallel: True
+    - name: Archive code coverage results
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: Adaptived Functional Tests Code Coverage
+        path: lcov.*
+
+  functional_tests_cgv2:
+    name: Adaptived Functional Tests v2
     runs-on: ubuntu-latest
 
     steps:
@@ -145,7 +202,7 @@ jobs:
   finalize:
     name: Finalize the test run
     if: ${{ always() }}
-    needs: [functional_tests]
+    needs: [functional_tests_cgv1, functional_tests_cgv2]
     runs-on: ubuntu-latest
     steps:
     - name: Finalize code coverage results
