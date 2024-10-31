@@ -19,7 +19,7 @@ dnl # Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
 dnl # or visit www.oracle.com if you need additional information or have any
 dnl # questions.
 
-AC_INIT([adaptived],[0.0.0])
+AC_INIT([adaptived],[1.0.0])
 
 dnl #
 dnl # autoconf configuration
