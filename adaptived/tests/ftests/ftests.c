@@ -59,6 +59,10 @@ void write_file(const char * const filename, const char * const contents)
 	FILE *f;
 
 	f = fopen(filename, "w");
+        if (!f) {
+                adaptived_err("write_file: cannot open %s\n", filename);
+                return;
+        }
 
 	if (strlen(contents))
 		fprintf(f, "%s", contents);
@@ -132,6 +136,10 @@ int verify_int_file(const char * const filename, int expected_value)
 	FILE *f;
 
 	f = fopen(filename, "r");
+        if (!f) {
+                adaptived_err("verify_int_file: cannot open %s\n", filename);
+                return -EINVAL;
+        }
 
 	bytes_read = fread(buf, 1, sizeof(buf), f);
 	if (bytes_read <= 0) {
@@ -162,6 +170,10 @@ int verify_ll_file(const char * const filename, long long expected_value)
 	FILE *f;
 
 	f = fopen(filename, "r");
+        if (!f) {
+                adaptived_err("verify_ll_file: cannot open %s\n", filename);
+                return -EINVAL;
+        }
 
 	bytes_read = fread(buf, 1, sizeof(buf), f);
 	if (bytes_read <= 0) {
@@ -191,6 +203,10 @@ int verify_char_file(const char * const filename, const char * const expected_co
 	FILE *f;
 
 	f = fopen(filename, "r");
+        if (!f) {
+                adaptived_err("verify_char_file: cannot open %s\n", filename);
+                return -EINVAL;
+        }
 
 	bytes_read = fread(buf, 1, sizeof(buf), f);
 	if (bytes_read <= 0) {
