@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <mntent.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -387,12 +388,146 @@ int stop_transient(const char *transient_name)
 
 #define DEFAULT_CMD	"/bin/bash -c 'while true ; do sleep 1 ; done'"
 #define CG_MNT_PT	"/sys/fs/cgroup"
+#define PROC_MNT	"/proc/self/mounts"
+
+/*
+ * Returns 1 for cgroup v1 and 2 for cgroup v2.
+ * Returns -1 if the version cannot be determined
+ * Does not handle hybrid (both cgroup v1 and v2 on the same machine) cgroups
+ *
+ * NOTE this is not re-entrant
+ */
+int get_cgroup_version(int * const version)
+{
+	bool found_v1 = false, found_v2 = false;
+	struct mntent *ent;
+	FILE *proc_mnt;
+
+	if (!version)
+		return -EINVAL;
+
+	*version = -1;
+
+	proc_mnt = fopen(PROC_MNT, "r");
+	if (!proc_mnt) {
+		adaptived_err("Failed to open %s\n", PROC_MNT);
+		return -EINVAL;
+	}
+
+	ent = getmntent(proc_mnt);
+
+	while (ent) {
+		if (strcmp(ent->mnt_type, "cgroup") == 0)
+			found_v1 = true;
+
+		if (strcmp(ent->mnt_type, "cgroup2") == 0)
+			found_v2 = true;
+
+		ent = getmntent(proc_mnt);
+	}
+
+	if (found_v1)
+		*version = 1;
+
+	if (found_v2 && !found_v1)
+		*version = 2;
+
+	fclose(proc_mnt);
+	return 0;
+}
+
+int build_cgroup_path(const char * const controller, const char * const cgrp, char ** path)
+{
+	size_t len;
+
+	if (!path || (*path) != NULL)
+		return -EINVAL;
+
+	/*
+	 * The first two '1's are for the '/' characters.  The last '1' is for the NULL terminator
+	 */
+	len = strlen(CG_MNT_PT) + 1 + 1 + 1;
+	if (controller)
+		len += strlen(controller);
+	if (cgrp)
+		len += strlen(cgrp);
+
+	*path = malloc(sizeof(char) * len);
+	if ((*path) == NULL)
+		return -ENOMEM;
+
+	memset(*path, 0, len);
+
+	if (controller && cgrp)
+		sprintf(*path, "%s/%s/%s", CG_MNT_PT, controller, cgrp);
+	else if (controller)
+		sprintf(*path, "%s/%s", CG_MNT_PT, controller);
+	else if (cgrp)
+		sprintf(*path, "%s/%s", CG_MNT_PT, cgrp);
+	else
+		sprintf(*path, "%s", CG_MNT_PT);
+
+	return 0;
+}
+
+int build_systemd_cgroup_path(const char * const cgrp, char ** path)
+{
+	int version, ret;
+
+	ret = get_cgroup_version(&version);
+	if (ret < 0 || version < 0)
+		return -EINVAL;
+
+	if (version == 1)
+		return build_cgroup_path("systemd", cgrp, path);
+	else if (version == 2)
+		return build_cgroup_path(NULL, cgrp, path);
+
+	return -EINVAL;
+}
+
+int build_systemd_memory_max_file(const char * const cgrp_path, char **file_path)
+{
+	int ret, version;
+	size_t len;
+
+	if (!cgrp_path || !file_path)
+		return -EINVAL;
+
+	*file_path = NULL;
+
+	ret = get_cgroup_version(&version);
+	if (ret < 0)
+		return ret;
+
+	if (version == 1) {
+		len = strlen(cgrp_path) + 1 + strlen("memory.limit_in_bytes") + 1;
+		*file_path = malloc(sizeof(char) * len);
+		if (!(*file_path))
+			return -ENOMEM;
+
+		memset(*file_path, 0, len);
+
+		sprintf(*file_path, "%s/memory.limit_in_bytes", cgrp_path);
+	} else if (version == 2) {
+		len = strlen(cgrp_path) + 1 + strlen("memory.max") + 1;
+		*file_path = malloc(sizeof(char) * len);
+		if (!(*file_path))
+			return -ENOMEM;
+
+		memset(*file_path, 0, len);
+
+		sprintf(*file_path, "%s/memory.max", cgrp_path);
+	}
+
+	return 0;
+}
 
 int start_slice(const char *slice_name, const char *cmd_to_run)
 {
-	char buf[FILENAME_MAX];
 	char cmdline[FILENAME_MAX];
 	char cmdbuf[FILENAME_MAX];
+	char *cgrp_path = NULL;
 	int i;
 	int max_retries = 10;
 	int ret;
@@ -413,29 +548,40 @@ int start_slice(const char *slice_name, const char *cmd_to_run)
 		adaptived_err("Command failed: %s\n", cmdline);
 		return ret;
 	}
-	ret = snprintf(buf, FILENAME_MAX - 1, "%s/%s", CG_MNT_PT, slice_name);
-	if (ret < 0)
+
+	ret = build_systemd_cgroup_path(slice_name, &cgrp_path);
+	if (ret < 0 || cgrp_path == NULL) {
+		adaptived_err("Failed to build the systemd cgroup path: %d\n", ret);
 		return ret;
+	}
+
 	i = 0;
 	while (i++ < max_retries) {
-		if (access(buf, F_OK) == 0)
+		if (access(cgrp_path, F_OK) == 0)
 			break;
 		fprintf(stderr, ".");
 		sleep(1);
 	}
-	if (access(buf, F_OK) != 0) {
-		adaptived_err("Can't create cgroup: %s\n", buf);
-		return -ENODEV;
+
+	if (access(cgrp_path, F_OK) != 0) {
+		adaptived_err("Can't create cgroup: %s\n", cgrp_path);
+		ret = -ENODEV;
+		goto err;
 	}
-	return 0;
+
+err:
+	if (cgrp_path)
+		free(cgrp_path);
+
+	return ret;
 }
 
 int start_unit(const char *unit_name, const char *cmd_to_run)
 {
-	char buf[FILENAME_MAX];
 	char cmdline[FILENAME_MAX];
 	char cmdbuf[FILENAME_MAX];
-	int i;
+	char *cgrp_path, *tmp_path;
+	int i, len;
 	int max_retries = 10;
 	int ret;
 
@@ -454,18 +600,36 @@ int start_unit(const char *unit_name, const char *cmd_to_run)
 		adaptived_err("Command failed: %s\n", cmdline);
 		return ret;
 	}
-	ret= snprintf(buf, FILENAME_MAX - 1, "%s/system.slice/%s", CG_MNT_PT, unit_name);
-	if (ret < 0)
+
+	len = strlen(unit_name) + 1 + strlen("system.slice") + 1;
+	tmp_path = malloc(sizeof(char) * len);
+	if (!tmp_path)
+		return -ENOMEM;
+
+	sprintf(tmp_path, "system.slice/%s", unit_name);
+
+	ret = build_systemd_cgroup_path(tmp_path, &cgrp_path);
+	free(tmp_path);
+	if (ret < 0 || cgrp_path == NULL) {
+		adaptived_err("Failed to build the systemd cgroup path: %d\n", ret);
 		return ret;
-	i = 0;
+	}
+
 	while (i++ < max_retries) {
-		if (access(buf, F_OK) == 0)
+		if (access(cgrp_path, F_OK) == 0)
 			break;
 		sleep(1);
 	}
-	if (access(buf, F_OK) != 0) {
-		adaptived_err("Can't create cgroup: %s\n", buf);
-		return -ENODEV;
+
+	if (access(cgrp_path, F_OK) != 0) {
+		adaptived_err("Can't create cgroup: %s\n", cgrp_path);
+		ret = -ENODEV;
+		goto err;
 	}
-	return 0;
+
+err:
+	if (cgrp_path)
+		free(cgrp_path);
+
+	return ret;
 }
