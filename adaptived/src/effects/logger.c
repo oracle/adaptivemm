@@ -316,7 +316,7 @@ int logger_main(struct adaptived_effect * const eff)
 		filep = opts->file_list;
 		do {
 			struct stat statbuf;
-			int size;
+			long size;
 
 			fnp = fopen(filep->filename, "r");
 			if (fnp == NULL)
@@ -332,7 +332,7 @@ int logger_main(struct adaptived_effect * const eff)
 				goto error;
 			}
 			size = statbuf.st_size;
-			if (!size || size >= opts->max_file_size)
+			if (size == 0 || size >= opts->max_file_size)
 				size = opts->max_file_size;
 			buf = malloc(size + 1);
 			if (!buf) {
@@ -357,7 +357,7 @@ int logger_main(struct adaptived_effect * const eff)
 			fclose(fnp);
 			fnp = NULL;
 			if (read <= 0) {
-				adaptived_err("logger_main: amount read from %s (%d) != size (%d)\n",
+				adaptived_err("logger_main: amount read from %s (%ld) != size (%ld)\n",
 					filep->filename, read, size);
 				ret = -EINVAL;
 				goto error;
