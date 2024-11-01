@@ -202,7 +202,7 @@ out:
 API int adaptived_cgroup_set_str(const char * const setting, const char * const value, uint32_t flags)
 {
 	char *validate_value;
-	size_t bytes_written;
+	ssize_t bytes_written;
 	int ret = 0;
 	int fd;
 
