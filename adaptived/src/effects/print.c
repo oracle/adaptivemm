@@ -60,6 +60,7 @@ int print_init(struct adaptived_effect * const eff, struct json_object *args_obj
 		ret = -ENOMEM;
 		goto error;
 	}
+	memset(opts, 0, sizeof(struct print_opts));
 
 	ret = adaptived_parse_string(args_obj, "message", &msg_str);
 	if (ret == -ENOENT) {
