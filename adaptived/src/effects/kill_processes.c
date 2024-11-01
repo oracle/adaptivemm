@@ -102,7 +102,7 @@ static int _kill_processes_init(struct adaptived_effect * const eff, struct json
 		goto error;
 	}
 
-	memset(opts->proc_names, '0', sizeof(char *) * opts->proc_name_cnt);
+	memset(opts->proc_names, '\0', sizeof(char *) * opts->proc_name_cnt);
 
 	for (i = 0; i < opts->proc_name_cnt; i++) {
 		proc_name_obj = json_object_array_get_idx(proc_names_obj, i);
