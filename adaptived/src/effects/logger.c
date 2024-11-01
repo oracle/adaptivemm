@@ -363,8 +363,8 @@ int logger_main(struct adaptived_effect * const eff)
 			}
 			write = fwrite(separator, 1, strlen(separator), log);
 			if (write != strlen(separator)) {
-				adaptived_err("logger_main: amount written (%d) != "
-				    "strlen(separator) (%d)\n", write, strlen(separator));
+				adaptived_err("logger_main: amount written (%ld) != "
+				    "strlen(separator) (%ld)\n", write, strlen(separator));
 				ret = -EINVAL;
 				goto error;
 			}
