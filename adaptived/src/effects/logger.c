@@ -370,8 +370,8 @@ int logger_main(struct adaptived_effect * const eff)
 			}
 			write = fwrite(buf, 1, strlen(buf), log);
 			if (write != strlen(buf)) {
-				adaptived_err("logger_main: amount written (%d) != "
-				    "strlen(buf) (%d) of %s\n",
+				adaptived_err("logger_main: amount written (%ld) != "
+				    "strlen(buf) (%ld) of %s\n",
 					write, strlen(buf), filep->filename);
 				ret = -EINVAL;
 				goto error;
