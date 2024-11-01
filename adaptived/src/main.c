@@ -551,7 +551,8 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 		if (!skip_sleep) {
 			sleep.tv_sec = interval / 1000;
 			sleep.tv_nsec = (interval % 1000) * 1000000LL;
-			adaptived_dbg("sleeping for %d seconds and %ld nanoseconds\n", sleep.tv_sec, sleep.tv_nsec);
+			adaptived_dbg("sleeping for %ld seconds and %ld nanoseconds\n",
+				      sleep.tv_sec, sleep.tv_nsec);
 
 			ret = nanosleep(&sleep, NULL);
 			if (ret)
