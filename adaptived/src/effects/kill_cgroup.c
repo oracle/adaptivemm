@@ -58,6 +58,8 @@ int kill_cgroup_init(struct adaptived_effect * const eff, struct json_object *ar
 		goto error;
 	}
 
+	memset(opts, 0, sizeof(struct kill_cg_opts));
+
 	ret = adaptived_parse_string(args_obj, "cgroup", &cgroup_path_str);
 	if (ret)
 		goto error;
