@@ -299,11 +299,10 @@ int logger_main(struct adaptived_effect * const eff)
 			strftime(dateline, FILENAME_MAX, opts->date_format, localtime(&now));
 		strcpy(&separator[strlen(separator)], dateline);
 		}
-		if (opts->separator_postfix) {
+
+		if (opts->separator_postfix)
 			strcpy(&separator[strlen(separator)], opts->separator_postfix);
-			if (ret < 0)
-				goto error;
-		}
+
 		adaptived_dbg("%s: separator = %s\n", __func__, separator);
 
 		write = fwrite(separator, 1, strlen(separator), log);
