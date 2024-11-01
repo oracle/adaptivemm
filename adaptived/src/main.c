@@ -441,18 +441,22 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 		if (ret)
 			return ret;
 	}
+
+	pthread_mutex_lock(&ctx->ctx_mutex);
         if (ctx->daemon_mode) {
 		adaptived_dbg("adaptived_loop: Try to run as daemon, nochdir = %d, noclose = %d\n",
 			ctx->daemon_nochdir, ctx->daemon_noclose);
 		ret = daemon(ctx->daemon_nochdir, ctx->daemon_noclose);
 		if (ret) {
 			adaptived_err("Failed to become daemon: %d.\n", errno);
+			pthread_mutex_unlock(&ctx->ctx_mutex);
 			return -errno;
 		}
 		adaptived_dbg("adaptived_loop: running as daemon.\n");
 	} else {
 		adaptived_dbg("adaptived_loop: Debug mode. Skip running as daemon.\n");
 	}
+	pthread_mutex_unlock(&ctx->ctx_mutex);
 
 	ctx->loop_cnt = 0;
 
