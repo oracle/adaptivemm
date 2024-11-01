@@ -130,10 +130,11 @@ err:
 
 API void adaptived_release(struct adaptived_ctx **ctx)
 {
-	cleanup(*ctx);
+	if (ctx == NULL)
+		return;
 
-	if (*ctx)
-		free(*ctx);
+	cleanup(*ctx);
+	free(*ctx);
 
 	(*ctx) = NULL;
 }
