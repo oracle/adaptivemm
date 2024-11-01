@@ -98,7 +98,7 @@ API int adaptived_parse_int(struct json_object * const obj, const char * const k
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
