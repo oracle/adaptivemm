@@ -64,7 +64,7 @@ API int adaptived_parse_string(struct json_object * const obj, const char * cons
 	json_bool exists;
 	int ret = 0;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -86,6 +86,9 @@ API int adaptived_parse_string(struct json_object * const obj, const char * cons
 	return ret;
 
 error:
+	if (value)
+		(*value) = NULL;
+
 	return ret;
 }
 
