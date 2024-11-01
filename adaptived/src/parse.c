@@ -150,7 +150,7 @@ API int adaptived_parse_long_long(struct json_object * const obj, const char * c
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
