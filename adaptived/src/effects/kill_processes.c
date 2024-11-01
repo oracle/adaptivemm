@@ -165,7 +165,8 @@ static int _kill_processes_init(struct adaptived_effect * const eff, struct json
 	return ret;
 
 error:
-	free_opts(opts);
+	if (opts)
+		free_opts(opts);
 
 	return ret;
 }
