@@ -605,7 +605,9 @@ int parse_rule(struct adaptived_ctx * const ctx, struct json_object * const rule
 	return ret;
 
 error:
-	rule_destroy(&rule);
+	if (rule)
+		rule_destroy(&rule);
+
 	return ret;
 }
 
