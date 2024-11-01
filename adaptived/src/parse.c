@@ -681,7 +681,7 @@ int parse_config(struct adaptived_ctx * const ctx)
 
 	chars_read = fread(buf, sizeof(char), config_size, config_fd);
 	if (chars_read != config_size) {
-		adaptived_err("Expected to read %d bytes but read %d bytes\n",
+		adaptived_err("Expected to read %ld bytes but read %ld bytes\n",
 			   config_size, chars_read);
 		ret = -EIO;
 		goto out;
