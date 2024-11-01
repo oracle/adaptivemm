@@ -355,6 +355,7 @@ int logger_main(struct adaptived_effect * const eff)
 			read = fread(&buf[strlen(buf)], 1,
 				     min(opts->max_file_size, size), fnp);
 			fclose(fnp);
+			fnp = NULL;
 			if (read <= 0) {
 				adaptived_err("logger_main: amount read from %s (%d) != size (%d)\n",
 					filep->filename, read, size);
