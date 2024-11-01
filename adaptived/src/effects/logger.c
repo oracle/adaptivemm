@@ -396,9 +396,9 @@ int logger_main(struct adaptived_effect * const eff)
 		return ret;
 	}
 
-	void logger_exit(struct adaptived_effect * const eff)
-	{
-		struct logger_opts *opts = (struct logger_opts *)eff->data;
+void logger_exit(struct adaptived_effect * const eff)
+{
+	struct logger_opts *opts = (struct logger_opts *)eff->data;
 
-		free_opts(opts);
+	free_opts(opts);
 }
