@@ -44,7 +44,7 @@
 API int adaptived_cgroup_set_ll(const char * const setting, long long value, uint32_t flags)
 {
 	long long validate_value;
-	size_t bytes_written;
+	ssize_t bytes_written;
 	char buf[LL_MAX];
 	int ret = 0;
 	int fd;
