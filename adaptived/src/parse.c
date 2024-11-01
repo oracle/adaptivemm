@@ -124,7 +124,7 @@ API int adaptived_parse_float(struct json_object * const obj, const char * const
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
