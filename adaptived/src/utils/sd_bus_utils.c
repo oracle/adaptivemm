@@ -425,8 +425,12 @@ API int adaptived_sd_bus_set_str(const char * const target, const char * const p
 			char *validate_value = NULL;
 
 			ret = adaptived_sd_bus_get_str(target, property, &validate_value);
-			if (ret)
+			if (ret) {
+				if (validate_value)
+					free(validate_value);
+
 				return ret;
+			}
 
 			if (!validate_value) {
 				adaptived_err("Failed to validate %s.\n", property);
