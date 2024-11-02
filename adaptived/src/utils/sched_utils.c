@@ -195,6 +195,9 @@ API int adaptived_get_schedstat(const char * const schedstat_file, struct adapti
 				goto error;
 			}
 		} else if (0 == strncmp(line, "domain", 6)) {
+			if (cpu < 0)
+				continue;
+
 			token = strtok(line, " ");
 			domain = atoi(token + 6);
 			if (domain < 0 || domain >= MAX_DOMAIN_LEVELS) {

@@ -130,10 +130,11 @@ err:
 
 API void adaptived_release(struct adaptived_ctx **ctx)
 {
-	cleanup(*ctx);
+	if (ctx == NULL)
+		return;
 
-	if (*ctx)
-		free(*ctx);
+	cleanup(*ctx);
+	free(*ctx);
 
 	(*ctx) = NULL;
 }
@@ -440,18 +441,22 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 		if (ret)
 			return ret;
 	}
+
+	pthread_mutex_lock(&ctx->ctx_mutex);
         if (ctx->daemon_mode) {
 		adaptived_dbg("adaptived_loop: Try to run as daemon, nochdir = %d, noclose = %d\n",
 			ctx->daemon_nochdir, ctx->daemon_noclose);
 		ret = daemon(ctx->daemon_nochdir, ctx->daemon_noclose);
 		if (ret) {
 			adaptived_err("Failed to become daemon: %d.\n", errno);
+			pthread_mutex_unlock(&ctx->ctx_mutex);
 			return -errno;
 		}
 		adaptived_dbg("adaptived_loop: running as daemon.\n");
 	} else {
 		adaptived_dbg("adaptived_loop: Debug mode. Skip running as daemon.\n");
 	}
+	pthread_mutex_unlock(&ctx->ctx_mutex);
 
 	ctx->loop_cnt = 0;
 
@@ -546,7 +551,8 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 		if (!skip_sleep) {
 			sleep.tv_sec = interval / 1000;
 			sleep.tv_nsec = (interval % 1000) * 1000000LL;
-			adaptived_dbg("sleeping for %d seconds and %ld nanoseconds\n", sleep.tv_sec, sleep.tv_nsec);
+			adaptived_dbg("sleeping for %ld seconds and %ld nanoseconds\n",
+				      sleep.tv_sec, sleep.tv_nsec);
 
 			ret = nanosleep(&sleep, NULL);
 			if (ret)

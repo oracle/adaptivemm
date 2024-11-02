@@ -64,6 +64,8 @@ static int _cgroup_setting_init(struct adaptived_effect * const eff, struct json
 		ret = -ENOMEM;
 		goto error;
 	}
+
+	memset(opts, 0, sizeof(struct cg_opts));
 	opts->value.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit_provided = false;

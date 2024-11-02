@@ -81,7 +81,7 @@ int snooze_main(struct adaptived_effect * const eff)
 	diff = difftime(cur_time, opts->prev_trigger);
 	adaptived_dbg("Snooze duration: %d, Current diff: %.0lf\n", opts->duration, diff);
 
-	if (diff < (double)(opts->duration / 1000))
+	if (diff < (double)(opts->duration / 1000.0f))
 		/* inform adaptived to skip the remaining effects in this rule */
 		return -EALREADY;
 
