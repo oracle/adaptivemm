@@ -107,10 +107,10 @@ static int handle_special_properties(sd_bus_message *m, const char *property, co
 			x = UINT64_MAX;
 		} else if (strcmp(real_property, "CPUQuotaPerSecUSec") == 0){
 			if (endswith(value->value.str_value, "%")) {
-				int percent = -1;
+				unsigned int percent;
 
 				items = sscanf(value->value.str_value, "%d%%", &percent);
-				if ((items != 1) || (percent == -1)) {
+				if (items != 1) {
 					adaptived_err("%s: sd_bus_message_append() failed, r=%d\n",
 						   __func__, r);
 					return -EINVAL;
