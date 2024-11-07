@@ -107,10 +107,10 @@ static int handle_special_properties(sd_bus_message *m, const char *property, co
 			x = UINT64_MAX;
 		} else if (strcmp(real_property, "CPUQuotaPerSecUSec") == 0){
 			if (endswith(value->value.str_value, "%")) {
-				int percent = -1;
+				unsigned int percent;
 
 				items = sscanf(value->value.str_value, "%d%%", &percent);
-				if ((items != 1) || (percent == -1)) {
+				if (items != 1) {
 					adaptived_err("%s: sd_bus_message_append() failed, r=%d\n",
 						   __func__, r);
 					return -EINVAL;
@@ -425,8 +425,12 @@ API int adaptived_sd_bus_set_str(const char * const target, const char * const p
 			char *validate_value = NULL;
 
 			ret = adaptived_sd_bus_get_str(target, property, &validate_value);
-			if (ret)
+			if (ret) {
+				if (validate_value)
+					free(validate_value);
+
 				return ret;
+			}
 
 			if (!validate_value) {
 				adaptived_err("Failed to validate %s.\n", property);

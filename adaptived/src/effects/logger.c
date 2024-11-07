@@ -299,16 +299,15 @@ int logger_main(struct adaptived_effect * const eff)
 			strftime(dateline, FILENAME_MAX, opts->date_format, localtime(&now));
 		strcpy(&separator[strlen(separator)], dateline);
 		}
-		if (opts->separator_postfix) {
+
+		if (opts->separator_postfix)
 			strcpy(&separator[strlen(separator)], opts->separator_postfix);
-			if (ret < 0)
-				goto error;
-		}
+
 		adaptived_dbg("%s: separator = %s\n", __func__, separator);
 
 		write = fwrite(separator, 1, strlen(separator), log);
 		if (write != strlen(separator)) {
-			adaptived_err("logger_main: amount written (%d) != strlen(separator) (%d)\n",
+			adaptived_err("logger_main: amount written (%ld) != strlen(separator) (%ld)\n",
 				write, strlen(separator));
 			ret = -EINVAL;
 			goto error;
@@ -316,7 +315,7 @@ int logger_main(struct adaptived_effect * const eff)
 		filep = opts->file_list;
 		do {
 			struct stat statbuf;
-			int size;
+			long size;
 
 			fnp = fopen(filep->filename, "r");
 			if (fnp == NULL)
@@ -332,7 +331,7 @@ int logger_main(struct adaptived_effect * const eff)
 				goto error;
 			}
 			size = statbuf.st_size;
-			if (!size || size >= opts->max_file_size)
+			if (size == 0 || size >= opts->max_file_size)
 				size = opts->max_file_size;
 			buf = malloc(size + 1);
 			if (!buf) {
@@ -355,23 +354,24 @@ int logger_main(struct adaptived_effect * const eff)
 			read = fread(&buf[strlen(buf)], 1,
 				     min(opts->max_file_size, size), fnp);
 			fclose(fnp);
+			fnp = NULL;
 			if (read <= 0) {
-				adaptived_err("logger_main: amount read from %s (%d) != size (%d)\n",
+				adaptived_err("logger_main: amount read from %s (%ld) != size (%ld)\n",
 					filep->filename, read, size);
 				ret = -EINVAL;
 				goto error;
 			}
 			write = fwrite(separator, 1, strlen(separator), log);
 			if (write != strlen(separator)) {
-				adaptived_err("logger_main: amount written (%d) != "
-				    "strlen(separator) (%d)\n", write, strlen(separator));
+				adaptived_err("logger_main: amount written (%ld) != "
+				    "strlen(separator) (%ld)\n", write, strlen(separator));
 				ret = -EINVAL;
 				goto error;
 			}
 			write = fwrite(buf, 1, strlen(buf), log);
 			if (write != strlen(buf)) {
-				adaptived_err("logger_main: amount written (%d) != "
-				    "strlen(buf) (%d) of %s\n",
+				adaptived_err("logger_main: amount written (%ld) != "
+				    "strlen(buf) (%ld) of %s\n",
 					write, strlen(buf), filep->filename);
 				ret = -EINVAL;
 				goto error;
@@ -396,9 +396,9 @@ int logger_main(struct adaptived_effect * const eff)
 		return ret;
 	}
 
-	void logger_exit(struct adaptived_effect * const eff)
-	{
-		struct logger_opts *opts = (struct logger_opts *)eff->data;
+void logger_exit(struct adaptived_effect * const eff)
+{
+	struct logger_opts *opts = (struct logger_opts *)eff->data;
 
-		free_opts(opts);
+	free_opts(opts);
 }

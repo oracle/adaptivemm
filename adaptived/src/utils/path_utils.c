@@ -245,7 +245,7 @@ API int adaptived_path_walk_next(struct adaptived_path_walk_handle **handle, cha
 
 	path_len = strlen(whandle->path) + strlen(de->d_name) + 2;
 	*path = malloc(sizeof(char) * path_len);
-	if (!path)
+	if (!(*path))
 		return -ENOMEM;
 
 	sprintf(*path, "%s/%s", whandle->path, de->d_name);

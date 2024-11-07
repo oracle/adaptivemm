@@ -64,7 +64,7 @@ API int adaptived_parse_string(struct json_object * const obj, const char * cons
 	json_bool exists;
 	int ret = 0;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -86,6 +86,9 @@ API int adaptived_parse_string(struct json_object * const obj, const char * cons
 	return ret;
 
 error:
+	if (value)
+		(*value) = NULL;
+
 	return ret;
 }
 
@@ -95,7 +98,7 @@ API int adaptived_parse_int(struct json_object * const obj, const char * const k
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -121,7 +124,7 @@ API int adaptived_parse_float(struct json_object * const obj, const char * const
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -147,7 +150,7 @@ API int adaptived_parse_long_long(struct json_object * const obj, const char * c
 	int ret = 0;
 	char *end;
 
-	if (!value && !(*value)) {
+	if (!value) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -605,7 +608,9 @@ int parse_rule(struct adaptived_ctx * const ctx, struct json_object * const rule
 	return ret;
 
 error:
-	rule_destroy(&rule);
+	if (rule)
+		rule_destroy(&rule);
+
 	return ret;
 }
 
@@ -676,7 +681,7 @@ int parse_config(struct adaptived_ctx * const ctx)
 
 	chars_read = fread(buf, sizeof(char), config_size, config_fd);
 	if (chars_read != config_size) {
-		adaptived_err("Expected to read %d bytes but read %d bytes\n",
+		adaptived_err("Expected to read %ld bytes but read %ld bytes\n",
 			   config_size, chars_read);
 		ret = -EIO;
 		goto out;
