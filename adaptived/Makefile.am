@@ -3,6 +3,7 @@ DIST_SUBDIRS = dist doc include src tests
 SUBDIRS = ${DIST_SUBDIRS}
 
 EXTRA_DIST = \
+	CHANGELOG.txt \
 	CONTRIBUTING.md \
 	LICENSE.txt \
 	README.md \
