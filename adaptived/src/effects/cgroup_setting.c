@@ -74,6 +74,10 @@ static int _cgroup_setting_init(struct adaptived_effect * const eff, struct json
 	if (ret)
 		goto error;
 
+	ret = adaptived_file_exists(setting_str);
+	if (ret)
+		goto error;
+
 	opts->setting = malloc(sizeof(char) * strlen(setting_str) + 1);
 	if (!opts->setting) {
 		ret = -ENOMEM;
@@ -90,6 +94,10 @@ static int _cgroup_setting_init(struct adaptived_effect * const eff, struct json
 			goto error;
 		ret = 0;
 	} else {
+		ret = adaptived_file_exists(setting_str);
+		if (ret)
+			goto error;
+
 		opts->pre_set_from = malloc(sizeof(char) * strlen(setting_str) + 1);
 		if (!opts->pre_set_from) {
 			ret = -ENOMEM;

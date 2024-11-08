@@ -80,6 +80,10 @@ int cgroup_setting_psi_init(struct adaptived_effect * const eff, struct json_obj
 	if (ret)
 		goto error;
 
+	ret = adaptived_file_exists(cgroup_path_str);
+	if (ret)
+		goto error;
+
 	opts->cgroup_path = malloc(sizeof(char) * strlen(cgroup_path_str) + 1);
 	if (!opts->cgroup_path) {
 		ret = -ENOMEM;
@@ -432,6 +436,10 @@ int cgroup_setting_psi_main(struct adaptived_effect * const eff)
 		sprintf(full_setting_path, "%s/%s", max_cgroup_path, opts->cgroup_setting);
 		full_setting_path[strlen(max_cgroup_path) +
 				  strlen(opts->cgroup_setting) + 1] = '\0';
+
+		ret = adaptived_file_exists(full_setting_path);
+		if (ret)
+			goto error;
 
 		ret = calculate_value(opts, full_setting_path, &value);
 		if (ret)

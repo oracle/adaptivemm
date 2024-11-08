@@ -61,11 +61,9 @@ int copy_cgroup_setting_init(struct adaptived_effect * const eff, struct json_ob
 	if (ret)
 		goto error;
 
-	if (access(setting_str, F_OK) != 0) {
-		adaptived_err("%s: can't find %s\n", __func__, setting_str);
-		ret = -EEXIST;
+	ret = adaptived_file_exists(setting_str);
+	if (ret)
 		goto error;
-	}
 
 	opts->from_setting = malloc(sizeof(char) * strlen(setting_str) + 1);
 	if (!opts->from_setting) {
@@ -80,11 +78,9 @@ int copy_cgroup_setting_init(struct adaptived_effect * const eff, struct json_ob
 	if (ret)
 		goto error;
 
-	if (access(setting_str, F_OK) != 0) {
-		adaptived_err("%s: can't find %s\n", __func__, setting_str);
-		ret = -EEXIST;
+	ret = adaptived_file_exists(setting_str);
+	if (ret)
 		goto error;
-	}
 
 	opts->to_setting = malloc(sizeof(char) * strlen(setting_str) + 1);
 	if (!opts->to_setting) {

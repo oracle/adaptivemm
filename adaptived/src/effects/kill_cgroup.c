@@ -64,6 +64,10 @@ int kill_cgroup_init(struct adaptived_effect * const eff, struct json_object *ar
 	if (ret)
 		goto error;
 
+	ret = adaptived_file_exists(cgroup_path_str);
+	if (ret)
+		goto error;
+
 	opts->cgroup_path = malloc(sizeof(char) * strlen(cgroup_path_str) + 1);
 	if (!opts->cgroup_path) {
 		ret = -ENOMEM;
