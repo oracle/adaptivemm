@@ -269,3 +269,20 @@ API void adaptived_path_walk_end(struct adaptived_path_walk_handle **handle)
 
 	*handle = NULL;
 }
+
+API int adaptived_file_exists(const char * const path)
+{
+	char check_path[FILENAME_MAX];
+	char *subp;
+
+	strcpy(check_path, path);
+	subp = strstr(check_path, "*");
+	if (subp)
+		*subp = '\0';
+
+	if (access(check_path, F_OK) != 0) {
+		adaptived_err("%s: can't find %s, errno=%d\n", __func__, check_path, errno);
+		return -EEXIST;
+	}
+	return 0;
+}

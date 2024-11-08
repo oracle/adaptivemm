@@ -424,6 +424,15 @@ int adaptived_path_walk_next(struct adaptived_path_walk_handle **handle, char **
  */
 void adaptived_path_walk_end(struct adaptived_path_walk_handle **handle);
 
+/**
+ * Check if the file/directory exists.
+ * @param path to file/directory
+ *
+ * @Note if an asterisk char is in the path, it will be replaced with '\0'
+ * @return 0 if file exists, else return -EEXIST
+ */
+int adaptived_file_exists(const char * const path);
+
 
 enum cg_setting_enum {
         CG_SETTING = 0,
