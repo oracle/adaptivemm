@@ -172,6 +172,10 @@ int pressure_main(struct adaptived_cause * const cse, int time_since_last_run)
 	int ret;
 
 	if (opts->common.meas == PRESSURE_SOME_TOTAL || opts->common.meas == PRESSURE_FULL_TOTAL) {
+		ret = adaptived_file_exists(opts->common.pressure_file);
+		if (ret)
+			return ret;
+
 		ret = adaptived_get_pressure_total(opts->common.pressure_file, opts->common.meas,
 						&int_press);
 		if (ret)
@@ -200,6 +204,10 @@ int pressure_main(struct adaptived_cause * const cse, int time_since_last_run)
 			return -EINVAL;
 		}
 	} else {
+		ret = adaptived_file_exists(opts->common.pressure_file);
+		if (ret)
+			return ret;
+
 		ret = adaptived_get_pressure_avg(opts->common.pressure_file, opts->common.meas,
 					      &float_press);
 		if (ret)

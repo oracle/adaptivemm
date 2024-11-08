@@ -127,6 +127,10 @@ int memorystat_main(struct adaptived_cause * const cse, int time_since_last_run)
 	long long ll_value = 0;
 	int ret;
 
+	ret = adaptived_file_exists(opts->stat_file);
+        if (ret)
+                return ret;
+
 	ret = adaptived_cgroup_get_memorystat_field(opts->stat_file, opts->field, &ll_value);
 	if (ret)
 		return ret;

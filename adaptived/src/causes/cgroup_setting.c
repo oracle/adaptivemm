@@ -124,6 +124,10 @@ int _cgset_main(struct adaptived_cause * const cse, int time_since_last_run)
 
 	val.type = opts->threshold.type;
 
+	ret = adaptived_file_exists(opts->setting);
+        if (ret)
+                return ret;
+
 	ret = adaptived_cgroup_get_value(opts->setting, &val);
 	if (ret)
 		return ret;

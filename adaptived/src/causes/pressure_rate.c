@@ -210,6 +210,10 @@ int pressure_rate_main(struct adaptived_cause * const cse, int time_since_last_r
 		/* Currently unsupported */
 		return -EINVAL;
 	} else {
+		ret = adaptived_file_exists(opts->common.pressure_file);
+		if (ret)
+			return ret;
+
 		ret = adaptived_get_pressure_avg(opts->common.pressure_file, opts->common.meas,
 					      &float_press);
 		if (ret)

@@ -423,6 +423,9 @@ int top_main(struct adaptived_cause * const cse, int time_since_last_run)
 	int ret;
 
 	if (opts->field <= TOP_CPU_ST) {
+		ret = adaptived_file_exists(opts->stat_file);
+		if (ret)
+			return ret;
 		ret = get_proc_stat_total(opts);
 		if (ret) {
 			adaptived_err("top_main: get_proc_stat_total() failed. ret=%d\n", ret);
@@ -433,6 +436,9 @@ int top_main(struct adaptived_cause * const cse, int time_since_last_run)
 			return 0;
 		}
 	} else {
+		ret = adaptived_file_exists(opts->meminfo_file);
+		if (ret)
+			return ret;
 		memset(&meminfo, 0, sizeof(struct proc_meminfo));
 		ret = calc_meminfo(opts, &meminfo);
 		if (ret) {

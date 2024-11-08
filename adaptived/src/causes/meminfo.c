@@ -130,6 +130,10 @@ int meminfo_main(struct adaptived_cause * const cse, int time_since_last_run)
 	long long ll_value = 0;
 	int ret;
 
+	ret = adaptived_file_exists(opts->meminfo_file);
+        if (ret)
+                return ret;
+
 	ret = adaptived_get_meminfo_field(opts->meminfo_file, opts->field, &ll_value);
 	if (ret)
 		return ret;

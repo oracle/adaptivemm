@@ -153,6 +153,10 @@ int slabinfo_main(struct adaptived_cause * const cse, int time_since_last_run)
 	long long ll_value = 0;
 	int ret;
 
+	ret = adaptived_file_exists(opts->slabinfo_file);
+        if (ret)
+                return ret;
+
 	ret = adaptived_get_slabinfo_field(opts->slabinfo_file, opts->field, opts->column, &ll_value);
 	if (ret)
 		return ret;
