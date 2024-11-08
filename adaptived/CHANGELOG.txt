@@ -1,0 +1,6 @@
+adaptived: Releases
+===============================================================================
+https://github.com/oracle/adaptivemm
+
+* Version 1.0.0 - November 8, 2024
+- Initial release
