@@ -16,7 +16,8 @@
 						"target": "sudo1003.slice",
 						"setting": "CPUQuotaPeriodSec",
 						"value": "1s",
-						"operator": "set"
+						"operator": "set",
+						"runtime": true
 					}
 				},
 				{
@@ -25,7 +26,8 @@
 						"target": "sudo1003.slice",
 						"setting": "CPUQuota",
 						"value": "44%",
-						"operator": "set"
+						"operator": "set",
+						"runtime": true
 					}
 				}
 			]

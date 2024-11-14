@@ -17,7 +17,8 @@
 						"setting": "MemoryMax",
 						"value": 89997312,
 						"operator": "set",
-						"validate": true
+						"validate": true,
+						"runtime": true
 					}
 				}
 			]
