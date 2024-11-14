@@ -17,7 +17,8 @@
 						"setting": "DevicePolicy",
 						"value": "closed",
 						"operator": "set",
-						"validate": true
+						"validate": true,
+						"runtime": true
 					}
 				}
 			]

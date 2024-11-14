@@ -16,7 +16,8 @@
 						"target": "sudo1001.slice",
 						"setting": "MemoryMax",
 						"value": 89997312,
-						"operator": "set"
+						"operator": "set",
+						"runtime": true
 					}
 				},
 				{
@@ -26,7 +27,8 @@
 						"setting": "MemoryMax",
 						"value": 4096,
 						"operator": "add",
-						"validate": true
+						"validate": true,
+						"runtime": true
 					}
 				}
 			]

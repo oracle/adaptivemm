@@ -67,11 +67,7 @@ int main(int argc, char *argv[])
 	ret = adaptived_set_attr(ctx, ADAPTIVED_ATTR_LOG_LEVEL, LOG_DEBUG);
 	if (ret)
 		goto err;
-	ret = start_slice(cgroup_slice_name, "cat");
-	if (ret) {
-		adaptived_err("Failed to create slice: %s, ret=%d\n", cgroup_slice_name, ret);
-		goto err;
-	}
+
 	ret = adaptived_loop(ctx, true);
 	if (ret != EXPECTED_RET)
 		goto err;
