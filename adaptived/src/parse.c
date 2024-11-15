@@ -624,6 +624,8 @@ static int parse_json(struct adaptived_ctx * const ctx, const char * const buf)
 
 	obj = json_tokener_parse_verbose(buf, &err);
 	if (!obj || err) {
+		if (err)
+			adaptived_err("%s: %s\n", __func__, json_tokener_error_desc(err));
 		ret = -EINVAL;
 		goto out;
 	}
