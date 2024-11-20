@@ -234,7 +234,7 @@ static int property_assignment(sd_bus_message *m, cgroupType t, const char *prop
 }
 
 static int set_property(const char *name, const char *property,
-			const struct adaptived_cgroup_value * const value)
+			const struct adaptived_cgroup_value * const value, bool arg_runtime)
 {
 	sd_bus_error error = SD_BUS_ERROR_NULL;
 	sd_bus_message *m = NULL;
@@ -242,7 +242,7 @@ static int set_property(const char *name, const char *property,
 	int r;
 	cgroupType t;
 
-	adaptived_dbg("set_property: name=%s, property=%s\n", name, property);
+	adaptived_dbg("set_property: name=%s, property=%s, arg_runtime=%d\n", name, property, arg_runtime);
 
 	r = sd_bus_default_system(&bus);
 	if (r < 0) {
@@ -264,7 +264,7 @@ static int set_property(const char *name, const char *property,
 		return t;
 	}
 
-	r = sd_bus_message_append(m, "sb", name, false);
+	r = sd_bus_message_append(m, "sb", name, arg_runtime);
 	if (r < 0) {
 		adaptived_err("set_property: sd_bus_message_append() failed, r=%d\n", r);
 		return r;
@@ -359,6 +359,7 @@ API int adaptived_sd_bus_set_ll(const char * const target, const char * const pr
 {
 	struct adaptived_cgroup_value val;
 	int ret = 0;
+	bool arg_runtime = false;
 
 	if (!target || !property)
 		return -EINVAL;
@@ -368,7 +369,10 @@ API int adaptived_sd_bus_set_ll(const char * const target, const char * const pr
 	val.type = ADAPTIVED_CGVAL_LONG_LONG;
 	val.value.ll_value = value;
 
-	ret = set_property(target, property, &val);
+	if (flags & ADAPTIVED_CGROUP_FLAGS_RUNTIME)
+		arg_runtime = true;
+
+	ret = set_property(target, property, &val, arg_runtime);
 	if (ret < 0)
 		return ret;
 
@@ -395,6 +399,7 @@ API int adaptived_sd_bus_set_str(const char * const target, const char * const p
 {
 	struct adaptived_cgroup_value val;
 	int ret = 0;
+	bool arg_runtime = false;
 
 	if (!target || !property || !value)
 		return -EINVAL;
@@ -404,7 +409,10 @@ API int adaptived_sd_bus_set_str(const char * const target, const char * const p
 	val.type = ADAPTIVED_CGVAL_STR;
 	val.value.str_value = (char *)value;
 
-	ret = set_property(target, property, &val);
+	if (flags & ADAPTIVED_CGROUP_FLAGS_RUNTIME)
+		arg_runtime = true;
+
+	ret = set_property(target, property, &val, arg_runtime);
 	if (ret < 0)
 		return ret;
 
