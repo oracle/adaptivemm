@@ -46,6 +46,7 @@ struct cg_opts {
 
 	enum effect_op_enum op;
 
+	bool runtime;
 	bool limit_provided;
 	struct adaptived_cgroup_value limit; /* optional */
 	bool validate;
@@ -69,6 +70,7 @@ int sd_bus_setting_init(struct adaptived_effect * const eff, struct json_object 
 	opts->value.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit_provided = false;
+	opts->runtime = false;
 
 	ret = adaptived_parse_string(args_obj, "target", &target_str);
 	if (ret)
@@ -152,6 +154,15 @@ int sd_bus_setting_init(struct adaptived_effect * const eff, struct json_object 
 		}
 	}
 
+	ret = adaptived_parse_bool(args_obj, "runtime", &opts->runtime);
+	if (ret == -ENOENT) {
+		opts->runtime = false;
+		ret = 0;
+	} else if (ret) {
+		adaptived_err("Failed to parse the sd_bus_setting runtime arg: %d\n", ret);
+		goto error;
+	}
+
 	ret = adaptived_parse_bool(args_obj, "validate", &opts->validate);
 	if (ret == -ENOENT) {
 		opts->validate = false;
@@ -212,6 +223,9 @@ static int add(const struct cg_opts * const opts, struct adaptived_cgroup_value 
 		if (opts->validate)
 			cgflags |= ADAPTIVED_CGROUP_FLAGS_VALIDATE;
 
+		if (opts->runtime)
+			cgflags |= ADAPTIVED_CGROUP_FLAGS_RUNTIME;
+
 		ret = adaptived_sd_bus_set_ll(opts->target, opts->setting, sum, cgflags);
 		if (ret)
 			return ret;
@@ -243,6 +257,9 @@ static int subtract(const struct cg_opts * const opts, struct adaptived_cgroup_v
 
 		if (opts->validate)
 			cgflags |= ADAPTIVED_CGROUP_FLAGS_VALIDATE;
+
+		if (opts->runtime)
+			cgflags |= ADAPTIVED_CGROUP_FLAGS_RUNTIME;
 
 		ret = adaptived_sd_bus_set_ll(opts->target, opts->setting, diff, cgflags);
 		if (ret)
@@ -292,6 +309,8 @@ static int _sd_bus_setting_main(struct adaptived_effect * const eff)
 	case EOP_SET:
 		if (opts->validate)
 			cgflags |= ADAPTIVED_CGROUP_FLAGS_VALIDATE;
+		if (opts->runtime)
+			cgflags |= ADAPTIVED_CGROUP_FLAGS_RUNTIME;
 
 		ret = adaptived_sd_bus_set_value(opts->target, opts->setting, &opts->value, cgflags);
 		if (ret)
@@ -318,6 +337,9 @@ int sd_bus_setting_main(struct adaptived_effect * const eff)
 			if (ret)
 				return ret;
 
+			if (opts->runtime)
+				cgflags |= ADAPTIVED_CGROUP_FLAGS_RUNTIME;
+
 			ret = adaptived_sd_bus_set_ll(opts->target, opts->setting, ll_value, cgflags);
 			if (ret)
 				return ret;
@@ -332,8 +354,14 @@ int sd_bus_setting_main(struct adaptived_effect * const eff)
 			ret = adaptived_get_meminfo_field(PROC_MEMINFO, "MemTotal", &ll_value);
 			if (ret)
 				return ret;
+
+			cgflags = ADAPTIVED_CGROUP_FLAGS_VALIDATE;
+
+			if (opts->runtime)
+				cgflags |= ADAPTIVED_CGROUP_FLAGS_RUNTIME;
+
 			ret = adaptived_sd_bus_set_ll(opts->target, opts->setting, ll_value,
-						   ADAPTIVED_CGROUP_FLAGS_VALIDATE);
+						   cgflags);
 			if (ret)
 				return ret;
 			adaptived_dbg("%s: %s at max. Changed to %lld\n", __func__, opts->setting, ll_value);
