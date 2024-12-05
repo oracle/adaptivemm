@@ -263,6 +263,7 @@ int adaptived_farray_linear_regression(float * const array, int array_len, int i
 				    int interp_x, float * const interp_y);
 
 #define ADAPTIVED_CGROUP_FLAGS_VALIDATE 0x1
+#define ADAPTIVED_CGROUP_FLAGS_RUNTIME	0x2	/* systemctl --runtime: make changes only temporarily */
 
 /**
  * Write a long long value to a cgroup setting

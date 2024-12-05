@@ -389,6 +389,7 @@ double time_elapsed(const struct timespec * const start, const struct timespec *
 int stop_transient(const char *transient_name)
 {
 	char cmdline[FILENAME_MAX];
+	char *cgrp_path = NULL;
 	int ret;
 
 	if (!transient_name)
@@ -399,6 +400,25 @@ int stop_transient(const char *transient_name)
 		return ret;
 	ret = system(cmdline);
 	adaptived_dbg("stop_transient: %s, ret=%d\n", cmdline, ret);
+
+	ret = build_systemd_cgroup_path(transient_name, &cgrp_path);
+	if (ret < 0 || cgrp_path == NULL) {
+		adaptived_err("%s: Failed to build the systemd cgroup path for %s, ret: %d\n", __func__, transient_name, ret);
+		return ret;
+	}
+
+	if (access(cgrp_path, F_OK) == 0) {
+		adaptived_dbg("stop_transient: %s still exists...\n", cgrp_path);
+		ret = snprintf(cmdline, FILENAME_MAX - 1, "sudo rmdir %s", cgrp_path);
+		if (ret < 0)
+			return ret;
+		ret = system(cmdline);
+		adaptived_dbg("stop_transient: %s, ret=%d\n", cmdline, ret);
+	}
+
+err:
+	if (cgrp_path)
+		free(cgrp_path);
 	return 0;
 }
 
