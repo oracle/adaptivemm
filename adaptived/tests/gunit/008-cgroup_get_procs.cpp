@@ -61,15 +61,14 @@ class CgroupGetProcsTest : public ::testing::Test {
 
 		for (i = 0; i < pids_cnt; i++) {
 			written = fprintf(f, "%d\n", pids[i]);
-			ASSERT_GE(written, 1);
+			ASSERT_GE(written, (size_t)1);
 		}
 
 		fclose(f);
 	}
 
 	void SetUp() override {
-		int ret, i;
-		FILE *f;
+		int ret;
 
 		ret = mkdir(cgroup_path_1, S_IRWXU | S_IRWXG | S_IRWXO);
 		ASSERT_EQ(ret, 0);

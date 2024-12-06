@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 		len = strlen(cgrp_path) + 1 + strlen("cpu.cfs_period_us") + 1;
 		cgrp_file = malloc(sizeof(char) * len);
 
-		memset(cgrp_file, 0, sizeof(cgrp_file));
+		memset(cgrp_file, 0, sizeof(char) * len);
 
 		sprintf(cgrp_file, "%s/cpu.cfs_period_us", cgrp_path);
 
@@ -100,6 +100,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		read_value = atoi(line);
 		if (read_value < 1)
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
 		if (read_value != expected_period)
 			goto err;
 
-		memset(cgrp_file, 0, sizeof(cgrp_file));
+		memset(cgrp_file, 0, sizeof(char) * len);
 
 		sprintf(cgrp_file, "%s/cpu.cfs_quota_us", cgrp_path);
 
@@ -118,6 +120,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		read_value = atoi(line);
 		if (read_value < 1)
@@ -135,7 +139,7 @@ int main(int argc, char *argv[])
 		len = strlen(cgrp_path) + 1 + strlen("cpu.max") + 1;
 		cgrp_file = malloc(sizeof(char) * len);
 
-		memset(cgrp_file, 0, sizeof(cgrp_file));
+		memset(cgrp_file, 0, sizeof(char) * len);
 
 		sprintf(cgrp_file, "%s/cpu.max", cgrp_path);
 
@@ -145,6 +149,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		if (strcmp(line, expected_buf) != 0) {
 			adaptived_err("sudo1003: got %s, expected %s\n", line, expected_buf);
