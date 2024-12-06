@@ -1,0 +1,173 @@
+# Copyright (c) 2024, Oracle and/or its affiliates.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+# Continuous Integration Workflow for adaptivemm / adaptived
+#
+# Note: based on libcgroup's continuous-integration.yml
+#
+
+name: Isolate Changes
+on: ["push", "pull_request"]
+
+jobs:
+  files-modified:
+    name: Get modified files
+    runs-on: ubuntu-latest
+    outputs:
+      amm_modified: ${{ steps.adaptivemm.outputs.amm_modified }}
+      ad_modified: ${{ steps.adaptived.outputs.ad_modified }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch
+        run: git fetch
+      - name: Set adaptivemm-modified to 1 if files were changed
+        id: adaptivemm
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          echo "BRANCH = $BRANCH"
+          if [[ -n "$BRANCH" ]]; then amm_modified=$(./diff.sh -m -s origin/$BRANCH) ; else amm_modified=$(./diff.sh -m) ; fi
+          echo "amm_modified=$amm_modified"
+          echo "amm_modified=$amm_modified" >> $GITHUB_OUTPUT
+      - name: Set adaptived-modified to 1 if files were changed
+        id: adaptived
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          echo "BRANCH = $BRANCH"
+          if [[ -n "$BRANCH" ]]; then ad_modified=$(./diff.sh -d -s origin/$BRANCH) ; else ad_modified=$(./diff.sh -d) ; fi
+          echo "ad_modified=$ad_modified"
+          echo "ad_modified=$ad_modified" >> $GITHUB_OUTPUT
+
+  adaptivemm-modified-check:
+    name: adaptivemm modification status
+    needs: [files-modified]
+    env:
+        amm_modified: ${{ needs.files-modified.outputs.amm_modified }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the current adaptivemm executable
+        run: |
+          make
+          sha256sum -b adaptivemmd > adaptivemmd.SHA256
+          cat adaptivemmd.SHA256
+      - name: Checkout the commit prior to this change
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          git fetch
+          echo "BRANCH = $BRANCH"
+          if [[ -n "$BRANCH" ]]; then git checkout origin/$BRANCH ; else git checkout origin/master ; fi
+      - name: Build the previous adaptivemm executable
+        id: shastep
+        continue-on-error: true
+        run: |
+          make clean
+          make
+          sha256sum -b adaptivemmd
+          sha256sum -c adaptivemmd.SHA256
+      - name: Print Results
+        run: |
+          if [[ $amm_modified == 1 ]]; then
+            if [[ ${{ steps.shastep.outcome }} == 'failure' ]]; then
+              echo "adaptivemm source was modified, and the SHA256 changed as expected"
+            else
+              echo "WARNING: adaptivemm source was modified, but the SHA256SUM didn't change"
+            fi
+          else
+            if [[ ${{ steps.shastep.outcome }} == 'failure' ]]; then
+              echo "ERROR: adaptivemm source was not modified, but the SHA256SUM changed"
+            else
+              echo "adaptivemm source was not modified, and the SHA256 remained the same"
+            fi
+          fi
+      - name: Verbose
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          echo "BRANCH = $BRANCH"
+          git checkout ${{ github.sha }}
+          echo "The following files were changed:"
+          if [[ -n "$BRANCH" ]]; then ./diff.sh -m -s origin/$BRANCH -v ; else ./diff.sh -m -v ; fi
+
+  adaptived-modified-check:
+    name: adaptived modification status
+    needs: [files-modified]
+    env:
+        ad_modified: ${{ needs.files-modified.outputs.ad_modified }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libjson-c-dev lcov cmake bison flex autoconf automake libtool libsystemd-dev -y
+      - name: Build the current adaptived executable
+        run: |
+          pushd adaptived
+          ./autogen.sh
+          ./configure
+          make
+          sha256sum -b src/adaptived > adaptived.SHA256
+          cat adaptived.SHA256
+          popd
+      - name: Checkout the commit prior to this change
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          git fetch
+          echo "BRANCH = $BRANCH"
+          if [[ -n "$BRANCH" ]]; then git checkout origin/$BRANCH ; else git checkout origin/master ; fi
+      - name: Build the previous adaptived executable
+        id: shastep
+        continue-on-error: true
+        run: |
+          pushd adaptived
+          ./autogen.sh
+          ./configure
+          make clean
+          make
+          sha256sum -b src/adaptived
+          sha256sum -c adaptived.SHA256
+      - name: Print Results
+        run: |
+          if [[ $ad_modified == 1 ]]; then
+            if [[ ${{ steps.shastep.outcome }} == 'failure' ]]; then
+              echo "adaptived source was modified, and the SHA256 changed as expected"
+            else
+              echo "WARNING: adaptived source was modified, but the SHA256SUM didn't change"
+            fi
+          else
+            if [[ ${{ steps.shastep.outcome }} == 'failure' ]]; then
+              echo "ERROR: adaptived source was not modified, but the SHA256SUM changed"
+            else
+              echo "adaptived source was not modified, and the SHA256 remained the same"
+            fi
+          fi
+      - name: Verbose
+        env:
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          echo "BRANCH = $BRANCH"
+          git checkout ${{ github.sha }}
+          echo "The following files were changed:"
+          if [[ -n "$BRANCH" ]]; then ./diff.sh -d -s origin/$BRANCH -v ; else ./diff.sh -d -v ; fi
