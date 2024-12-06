@@ -40,7 +40,7 @@ TEST_F(FarrayLinearRegressionTest, IntervalOfOne)
 	float y[] = {94.6, 88.4, 92.5, 90.1, 84.3, 75.7, 75.9, 80.2, 65.8, 60.9, 62.3,
 		     58.9, 58.5, 63.5, 55.4, 59.4, 56.3, 52.1, 51.1, 48.6, 47.9, 51.8,
 		     50.3, 45.6, 43.2, 43.1, 46.2, 40.7, 38.9, 37.5, 35.9, 40.2, 38.7};
-	int interval, y_len, ret;
+	int y_len, ret;
 	float interp_y;
 
 	y_len = ARRAY_SIZE(y);
@@ -61,7 +61,7 @@ TEST_F(FarrayLinearRegressionTest, IntervalOfOne)
 TEST_F(FarrayLinearRegressionTest, IntervalOfTwo)
 {
 	float y[] = {7.0, 8.0, 6.0, 10.0, 15.0, 12.0, 14.0, 17.0, 21.0, 26.0, 29.0};
-	int interval, y_len, ret;
+	int y_len, ret;
 	float interp_y;
 
 	y_len = ARRAY_SIZE(y);

@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 {
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx;
-	int ret;
+	int ret = -EINVAL;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/064-cause-top_mem_lt.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';

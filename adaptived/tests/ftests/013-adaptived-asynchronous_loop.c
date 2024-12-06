@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
 	char config_path[FILENAME_MAX];
 	pthread_t adaptived_thread;
 	struct adaptived_ctx *ctx;
-	uint32_t loop_cnt;
 	double time_diff;
 	void *tret;
 	int ret;
@@ -122,7 +121,7 @@ int main(int argc, char *argv[])
 	if (ret)
 		goto err;
 	if (stats.loops_run_cnt != 3) {
-		adaptived_err("Expected 3 loops, but %d loops ran\n", loop_cnt);
+		adaptived_err("Expected 3 loops, but %d loops ran\n", stats.loops_run_cnt);
 		goto err;
 	}
 

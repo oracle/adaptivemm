@@ -48,8 +48,6 @@ int main(int argc, char *argv[])
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
 	int ret, version;
-	int i = 0;
-	int max_retries = 10;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/1006-sudo-effect-sd_bus_setting_set_int_scope.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';

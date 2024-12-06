@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 {
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
-	int ret, fd, items;
+	int ret;
 	struct sysinfo info;
 	sysinfo(&info);
 	int br;
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 	memset(buf, 0, FILENAME_MAX);
 	strcpy(buf, line);
 	/* MemTotal:       527700340 kB */
-	items = sscanf(buf, "MemTotal:       %lld kB", &memtotal);
+	sscanf(buf, "MemTotal:       %lld kB", &memtotal);
 	memtotal *= 1024;
 
 	expected_value = memtotal - 1024;

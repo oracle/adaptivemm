@@ -74,9 +74,9 @@ class AdaptivedGetPressureTest : public ::testing::Test {
 		ASSERT_GT(fd, 0);
 
 		ret = write(fd, SOME_LINE, strlen(SOME_LINE));
-		ASSERT_EQ(ret, strlen(SOME_LINE));
+		ASSERT_EQ(ret, (int)strlen(SOME_LINE));
 		ret = write(fd, FULL_LINE, strlen(FULL_LINE));
-		ASSERT_EQ(ret, strlen(FULL_LINE));
+		ASSERT_EQ(ret, (int)strlen(FULL_LINE));
 
 		close(fd);
 	}
