@@ -416,7 +416,6 @@ int stop_transient(const char *transient_name)
 		adaptived_dbg("stop_transient: %s, ret=%d\n", cmdline, ret);
 	}
 
-err:
 	if (cgrp_path)
 		free(cgrp_path);
 	return 0;
@@ -617,7 +616,7 @@ int start_unit(const char *unit_name, const char *cmd_to_run)
 	char cmdline[FILENAME_MAX];
 	char cmdbuf[FILENAME_MAX];
 	char *cgrp_path, *tmp_path;
-	int i, len;
+	int i = 0, len;
 	int max_retries = 10;
 	int ret;
 

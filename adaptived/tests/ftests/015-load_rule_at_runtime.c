@@ -73,7 +73,7 @@ char *get_current_time(void)
 int main(int argc, char *argv[])
 {
 	struct adaptived_rule_stats stats;
-	uint32_t loop_cnt, rule_cnt;
+	uint32_t rule_cnt;
 	struct adaptived_effect *eff;
 	struct adaptived_cause *cse;
 	struct adaptived_rule *rule;

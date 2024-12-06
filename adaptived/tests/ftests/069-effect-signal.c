@@ -76,7 +76,7 @@ int execute(pid_t * const child_pid)
 {
 	char cmdline[FILENAME_MAX];
 	char *argv[2] = { NULL };
-	int i, ret = 0, fd;
+	int ret = 0, fd;
 
 	memset(cmdline, 0, FILENAME_MAX);
 
@@ -123,9 +123,8 @@ err:
 int main(int argc, char *argv[])
 {
 	char config_path[FILENAME_MAX];
-	char cmdline[FILENAME_MAX];
 	struct adaptived_ctx *ctx;
-	int ret, i, status;
+	int ret, status;
 	pid_t child_pid;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/069-effect-signal.json", argv[1]);
