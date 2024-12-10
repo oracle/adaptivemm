@@ -58,21 +58,11 @@ static void _log(int priority, const char *fmt, va_list *ap)
 	va_end(*ap);
 }
 
-static void _log_string(int priority, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	_log(priority, fmt, &ap);
-	va_end(ap);
-}
-
 API void adaptived_err(const char *fmt, ...)
 {
 	va_list ap;
 
 	if (log_level >= LOG_ERR) {
-		_log_string(LOG_ERR, "Error: ");
 		va_start(ap, fmt);
 		_log(LOG_ERR, fmt, &ap);
 		va_end(ap);
@@ -84,7 +74,6 @@ API void adaptived_wrn(const char *fmt, ...)
 	va_list ap;
 
 	if (log_level >= LOG_WARNING) {
-		_log_string(LOG_WARNING, "Warning: ");
 		va_start(ap, fmt);
 		_log(LOG_WARNING, fmt, &ap);
 		va_end(ap);
@@ -96,7 +85,6 @@ API void adaptived_info(const char *fmt, ...)
 	va_list ap;
 
 	if (log_level >= LOG_INFO) {
-		_log_string(LOG_INFO, "Info: ");
 		va_start(ap, fmt);
 		_log(LOG_INFO, fmt, &ap);
 		va_end(ap);
@@ -108,7 +96,6 @@ API void adaptived_dbg(const char *fmt, ...)
 	va_list ap;
 
 	if (log_level >= LOG_DEBUG) {
-		_log_string(LOG_DEBUG, "Debug: ");
 		va_start(ap, fmt);
 		_log(LOG_DEBUG, fmt, &ap);
 		va_end(ap);
