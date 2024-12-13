@@ -4,7 +4,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/include \
 	      -I$(top_srcdir)/googletest/googletest/include \
 	      -I$(top_srcdir)/googletest/googletest \
 	      -std=c++11 \
-	      -Wno-write-strings
+	      -Wno-write-strings \
+	      -Wall
 LDADD = $(top_builddir)/src/.libs/libadaptived.la
 
 EXTRA_DIST = $(top_srcdir)/googletest/googletest/libgtest.so \

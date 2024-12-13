@@ -32,7 +32,7 @@ EXTRA_DIST_PYTHON_FILES = \
 	run.py \
 	utils.py
 
-AM_CFLAGS = ${CFLAGS}
+AM_CFLAGS = ${CFLAGS} -Wall
 AM_LDFLAGS = ${LDFLAGS} ${CODE_COVERAGE_LIBS}
 LDADD = -ljson-c -lpthread ${top_builddir}/src/libadaptived.la
 
