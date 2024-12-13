@@ -57,7 +57,7 @@ class SortPidListTest : public ::testing::Test {
 	protected:
 
 	void SetUp() override {
-		ASSERT_EQ(array_size, ARRAY_SIZE(vsizes));
+		ASSERT_EQ(array_size, (int)ARRAY_SIZE(vsizes));
 	}
 };
 

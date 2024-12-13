@@ -110,7 +110,6 @@ static int cgroup_files_contents[] = {
 	1000,
 	1000
 };
-static const int cgroup_files_contents_cnt = ARRAY_SIZE(cgroup_files_contents);
 static_assert(ARRAY_SIZE(cgroup_files_contents) == ARRAY_SIZE(cgroup_files),
 	      "cgroup file contents array must be same length as cgroup files array");
 
@@ -123,7 +122,6 @@ static int expected_cgroup_files_contents[] = {
 	999,
 	1000
 };
-static const int expected_cgroup_files_contents_cnt = ARRAY_SIZE(expected_cgroup_files_contents);
 static_assert(ARRAY_SIZE(expected_cgroup_files_contents) == ARRAY_SIZE(cgroup_files),
 	      "expected cgroup file contents array must be same length as cgroup files array");
 

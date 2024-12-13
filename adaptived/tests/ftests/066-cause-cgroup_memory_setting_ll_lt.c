@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 {
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx;
-	int ret, items, br;
+	int ret, br;
 	char buf[FILENAME_MAX];
 	long long memtotal, val;
 	FILE *fp;
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 	memset(buf, 0, FILENAME_MAX);
 	strcpy(buf, line);
 	/* MemTotal:       527700340 kB */
-	items = sscanf(buf, "MemTotal:       %lld kB", &memtotal);
+	sscanf(buf, "MemTotal:       %lld kB", &memtotal);
 	memtotal *= 1024;
 
 	val = strtol(maxbuf, 0, 0);

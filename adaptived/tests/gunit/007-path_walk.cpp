@@ -74,12 +74,12 @@ class PathWalkTest : public ::testing::Test {
 		int ret, i;
 		FILE *f;
 
-		for (i = 0; i < ARRAY_SIZE(dirs); i++) {
+		for (i = 0; i < (int)ARRAY_SIZE(dirs); i++) {
 			ret = mkdir(dirs[i], S_IRWXU | S_IRWXG | S_IRWXO);
 			ASSERT_EQ(ret, 0);
 		}
 
-		for (i = 0; i < ARRAY_SIZE(files); i++) {
+		for (i = 0; i < (int)ARRAY_SIZE(files); i++) {
 			f = fopen(files[i], "w");
 			ASSERT_NE(f, nullptr);
 			fclose(f);
@@ -111,7 +111,7 @@ static int get_dir_index(const char * const path)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dirs); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++) {
 		if (strcmp(path, dirs[i]) == 0)
 			return i;
 	}
@@ -123,7 +123,7 @@ static int get_file_index(const char * const path)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(files); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++) {
 		if (strcmp(path, files[i]) == 0)
 			return i;
 	}
@@ -205,7 +205,7 @@ TEST_F(PathWalkTest, WalkDirectories)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(dirs); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++)
 		ASSERT_TRUE(found[i]);
 }
 
@@ -237,7 +237,7 @@ TEST_F(PathWalkTest, WalkFiles)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(files); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++)
 		ASSERT_TRUE(found[i]);
 }
 
@@ -275,16 +275,16 @@ TEST_F(PathWalkTest, WalkFilesAndDirs)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(files); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++)
 		ASSERT_TRUE(found_f[i]);
-	for (i = 0; i < ARRAY_SIZE(dirs); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++)
 		ASSERT_TRUE(found_d[i]);
 }
 
 TEST_F(PathWalkTest, WalkFilesAndDirsNoRecurse)
 {
 	struct adaptived_path_walk_handle *handle = NULL;
-	int ret, index, i = 0;
+	int ret, i = 0;
 	char *next = NULL;
 
 	ret = adaptived_path_walk_start(dirs[0], &handle,
@@ -306,9 +306,10 @@ TEST_F(PathWalkTest, WalkFilesAndDirsNoRecurse)
 			    strcmp(next, "test007/cgroup.procs") != 0 &&
 			    strcmp(next, "test007/child1") != 0 &&
 			    strcmp(next, "test007/child2") != 0 &&
-			    strcmp(next, "test007/child3") != 0)
+			    strcmp(next, "test007/child3") != 0) {
 				/* An unexpected string matched.  Always fail */
 				ASSERT_STREQ(next, nullptr);
+			}
 		}
 	} while (ret == 0 && next);
 
@@ -392,11 +393,11 @@ TEST_F(PathWalkTest, WalkFilesAndDirsWildcard)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(files); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++)
 		ASSERT_TRUE(found_f[i]);
 
 	ASSERT_FALSE(found_d[0]);
-	for (i = 1; i < ARRAY_SIZE(dirs); i++)
+	for (i = 1; i < (int)ARRAY_SIZE(dirs); i++)
 		ASSERT_TRUE(found_d[i]);
 }
 
@@ -434,9 +435,9 @@ TEST_F(PathWalkTest, WalkFilesAndDirsWildcard2)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(files); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++)
 		ASSERT_TRUE(found_f[i]);
-	for (i = 0; i < ARRAY_SIZE(dirs); i++)
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++)
 		ASSERT_TRUE(found_d[i]);
 }
 
@@ -467,7 +468,7 @@ static void walk_directories_test(int max_depth)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(dirs); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++) {
 		depth = get_depth(dirs[i]);
 		if (depth <= max_depth)
 			ASSERT_TRUE(found[i]);
@@ -530,14 +531,14 @@ static void walk_dirs_and_files_test(int max_depth)
 	adaptived_path_walk_end(&handle);
 	ASSERT_EQ(handle, nullptr);
 
-	for (i = 0; i < ARRAY_SIZE(files); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(files); i++) {
 		depth = get_depth(files[i]);
 		if (depth <= max_depth)
 			ASSERT_TRUE(found_f[i]);
 		else
 			ASSERT_FALSE(found_f[i]);
 	}
-	for (i = 0; i < ARRAY_SIZE(dirs); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(dirs); i++) {
 		depth = get_depth(dirs[i]);
 		if (depth <= max_depth)
 			ASSERT_TRUE(found_d[i]);

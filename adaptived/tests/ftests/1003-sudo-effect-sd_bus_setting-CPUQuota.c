@@ -44,9 +44,10 @@ static const int expected_period = 1000000;
 
 int main(int argc, char *argv[])
 {
-	char *cgrp_path = NULL, *cgrp_file = NULL;
+	char *cgrp_path = NULL;
 	char config_path[FILENAME_MAX];
 	char expected_buf[FILENAME_MAX];
+	char cgrp_file[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
 	int ret, version, read_value;
 	FILE * fp;
@@ -88,10 +89,8 @@ int main(int argc, char *argv[])
 			goto err;
 
 		len = strlen(cgrp_path) + 1 + strlen("cpu.cfs_period_us") + 1;
-		cgrp_file = malloc(sizeof(char) * len);
 
 		memset(cgrp_file, 0, sizeof(cgrp_file));
-
 		sprintf(cgrp_file, "%s/cpu.cfs_period_us", cgrp_path);
 
 		fp = fopen(cgrp_file, "r");
@@ -100,6 +99,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		read_value = atoi(line);
 		if (read_value < 1)
@@ -109,7 +110,6 @@ int main(int argc, char *argv[])
 			goto err;
 
 		memset(cgrp_file, 0, sizeof(cgrp_file));
-
 		sprintf(cgrp_file, "%s/cpu.cfs_quota_us", cgrp_path);
 
 		fp = fopen(cgrp_file, "r");
@@ -118,6 +118,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		read_value = atoi(line);
 		if (read_value < 1)
@@ -133,10 +135,8 @@ int main(int argc, char *argv[])
 		sprintf(expected_buf, "%d %d\n", expected_quota, expected_period);
 
 		len = strlen(cgrp_path) + 1 + strlen("cpu.max") + 1;
-		cgrp_file = malloc(sizeof(char) * len);
 
 		memset(cgrp_file, 0, sizeof(cgrp_file));
-
 		sprintf(cgrp_file, "%s/cpu.max", cgrp_path);
 
 		fp = fopen(cgrp_file, "r");
@@ -145,6 +145,8 @@ int main(int argc, char *argv[])
 
 		read = getline(&line, &len, fp);
 		fclose(fp);
+		if (read < 0 || !line)
+			goto err;
 
 		if (strcmp(line, expected_buf) != 0) {
 			adaptived_err("sudo1003: got %s, expected %s\n", line, expected_buf);
@@ -156,8 +158,6 @@ int main(int argc, char *argv[])
 		free(line);
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
-	if (cgrp_file)
-		free(cgrp_file);
 	if (cgrp_path)
 		free(cgrp_path);
 
@@ -168,8 +168,6 @@ err:
 		free(line);
 	adaptived_release(&ctx);
 	stop_transient(cgroup_slice_name);
-	if (cgrp_file)
-		free(cgrp_file);
 	if (cgrp_path)
 		free(cgrp_path);
 

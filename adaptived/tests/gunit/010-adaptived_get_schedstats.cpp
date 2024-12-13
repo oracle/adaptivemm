@@ -101,44 +101,44 @@ TEST_F(GetSchedstatsTest, GetSnapshot)
 	ASSERT_EQ(ss.nr_cpus, 4);
 	ASSERT_EQ(ss.timestamp, 5979263307LU);
 
-	ASSERT_EQ(ss.schedstat_cpus[0].ttwu, 0);
-	ASSERT_EQ(ss.schedstat_cpus[0].ttwu_local, 0);
+	ASSERT_EQ(ss.schedstat_cpus[0].ttwu, 0U);
+	ASSERT_EQ(ss.schedstat_cpus[0].ttwu_local, 0U);
 	ASSERT_EQ(ss.schedstat_cpus[0].run_time, 43076095314418LLU);
 	ASSERT_EQ(ss.schedstat_cpus[0].run_delay, 394914672557LLU);
 	ASSERT_EQ(ss.schedstat_cpus[0].nr_timeslices, 428184882LU);
-	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[0].ttwu_remote, 1);
-	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[0].ttwu_move_affine, 2);
-	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[1].ttwu_remote, 3);
-	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[1].ttwu_move_affine, 4);
+	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[0].ttwu_remote, 1U);
+	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[0].ttwu_move_affine, 2U);
+	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[1].ttwu_remote, 3U);
+	ASSERT_EQ(ss.schedstat_cpus[0].schedstat_domains[1].ttwu_move_affine, 4U);
 
 
-	ASSERT_EQ(ss.schedstat_cpus[1].ttwu, 0);
-	ASSERT_EQ(ss.schedstat_cpus[1].ttwu_local, 0);
+	ASSERT_EQ(ss.schedstat_cpus[1].ttwu, 0U);
+	ASSERT_EQ(ss.schedstat_cpus[1].ttwu_local, 0U);
 	ASSERT_EQ(ss.schedstat_cpus[1].run_time, 10913795519351LLU);
 	ASSERT_EQ(ss.schedstat_cpus[1].run_delay, 136791545255LLU);
 	ASSERT_EQ(ss.schedstat_cpus[1].nr_timeslices, 100532045LU);
-	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[0].ttwu_remote, 5);
-	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[0].ttwu_move_affine, 6);
-	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[1].ttwu_remote, 7);
-	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[1].ttwu_move_affine, 8);
+	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[0].ttwu_remote, 5U);
+	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[0].ttwu_move_affine, 6U);
+	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[1].ttwu_remote, 7U);
+	ASSERT_EQ(ss.schedstat_cpus[1].schedstat_domains[1].ttwu_move_affine, 8U);
 
-	ASSERT_EQ(ss.schedstat_cpus[2].ttwu, 0);
-	ASSERT_EQ(ss.schedstat_cpus[2].ttwu_local, 0);
+	ASSERT_EQ(ss.schedstat_cpus[2].ttwu, 0U);
+	ASSERT_EQ(ss.schedstat_cpus[2].ttwu_local, 0U);
 	ASSERT_EQ(ss.schedstat_cpus[2].run_time, 54048015265649LLU);
 	ASSERT_EQ(ss.schedstat_cpus[2].run_delay, 599770051010LLU);
 	ASSERT_EQ(ss.schedstat_cpus[2].nr_timeslices, 527416276LU);
-	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[0].ttwu_remote, 9);
-	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[0].ttwu_move_affine, 10);
-	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[1].ttwu_remote, 11);
-	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[1].ttwu_move_affine, 12);
+	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[0].ttwu_remote, 9U);
+	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[0].ttwu_move_affine, 10U);
+	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[1].ttwu_remote, 11U);
+	ASSERT_EQ(ss.schedstat_cpus[2].schedstat_domains[1].ttwu_move_affine, 12U);
 
-	ASSERT_EQ(ss.schedstat_cpus[3].ttwu, 0);
-	ASSERT_EQ(ss.schedstat_cpus[3].ttwu_local, 0);
+	ASSERT_EQ(ss.schedstat_cpus[3].ttwu, 0U);
+	ASSERT_EQ(ss.schedstat_cpus[3].ttwu_local, 0U);
 	ASSERT_EQ(ss.schedstat_cpus[3].run_time, 9043880713438LLU);
 	ASSERT_EQ(ss.schedstat_cpus[3].run_delay, 172082515008LLU);
 	ASSERT_EQ(ss.schedstat_cpus[3].nr_timeslices, 83848679LU);
-	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[0].ttwu_remote, 13);
-	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[0].ttwu_move_affine, 14);
-	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[1].ttwu_remote, 15);
-	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[1].ttwu_move_affine, 16);
+	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[0].ttwu_remote, 13U);
+	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[0].ttwu_move_affine, 14U);
+	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[1].ttwu_remote, 15U);
+	ASSERT_EQ(ss.schedstat_cpus[3].schedstat_domains[1].ttwu_move_affine, 16U);
 }

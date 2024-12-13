@@ -105,10 +105,9 @@ int execute(int count)
 
 int wait_pids(int count, int expected_alive_count)
 {
-	int i, ret;
+	int i;
 	int alive_count = 0;
 	int killed_by_effect = 0;
-	pid_t killed[PID_COUNT] = { -1 };
 
 	for (i = 0; i < count; i++) {
 		if (pid[i] > 0) {
@@ -131,7 +130,6 @@ int wait_pids(int count, int expected_alive_count)
 			} while (ret == 0 && loops++ < ALIVE_TIME);
 			if (ret == 0) {
 				kill(pid[i], SIGKILL);
-				killed[i] = pid[i];
 				alive_count++;
 			}
 			adaptived_dbg("wait_pids: pid[%d]=%d, status=%d, ret=%d\n",
@@ -159,10 +157,8 @@ int wait_pids(int count, int expected_alive_count)
 int main(int argc, char *argv[])
 {
 	char config_path[FILENAME_MAX];
-	char cmdline[FILENAME_MAX];
 	struct adaptived_ctx *ctx;
 	int ret;
-	int i;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/068-effect-kill_processes_rss.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';

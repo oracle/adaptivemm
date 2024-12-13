@@ -103,7 +103,6 @@ static int inject(struct adaptived_ctx * const ctx)
 	if (w <= 0)
 		ret = -errno;
 
-err:
 	close(fd);
 	ctr++;
 
