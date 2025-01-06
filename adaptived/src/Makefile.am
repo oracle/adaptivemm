@@ -48,14 +48,14 @@ SOURCES = \
 	utils/sched_utils.c
 
 adaptived_SOURCES = ${SOURCES}
-adaptived_CFLAGS = ${AM_CFLAGS} ${CFLAGS}  ${CODE_COVERAGE_CFLAGS}
+adaptived_CFLAGS = ${AM_CFLAGS} ${CFLAGS}  ${CODE_COVERAGE_CFLAGS} -Wall
 adaptived_LDFLAGS = ${AM_LDFLAGS} ${LDFLAGS} ${CODE_COVERAGE_LIBS} -ljson-c -lpthread -lsystemd
 sbin_PROGRAMS = adaptived
 
 libadaptived_la_SOURCES = ${SOURCES}
 libadaptived_la_LIBADD = ${CODE_COVERAGE_LIBS} -ljson-c -lpthread -lsystemd
 libadaptived_la_CFLAGS = ${AM_CFLAGS} ${CFLAGS} ${CODE_COVERAGE_CFLAGS} -fPIC \
-		      -fvisibility=hidden
+		      -fvisibility=hidden -Wall
 libadaptived_la_LDFLAGS = ${AM_LDFLAGS} ${CODE_COVERAGE_LDFLAGS} ${LDFLAGS} \
 		       -version-number ${VERSION_MAJOR}:${VERSION_MINOR}:${VERSION_MICRO}
 lib_LTLIBRARIES = libadaptived.la
