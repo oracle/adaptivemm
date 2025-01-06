@@ -38,7 +38,6 @@ int main(int argc, char *argv[])
 	struct adaptived_rule_stats stats;
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx;
-	uint32_t trigger_cnt;
 	int ret;
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/010-snooze_effect.json", argv[1]);

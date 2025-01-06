@@ -39,7 +39,6 @@
 #define EXPECTED_RET_FAIL 1
 
 static const char * const cgroup_file = "./test045.cgroup";
-static const long long expected_value = 25;
 
 int main(int argc, char *argv[])
 {
