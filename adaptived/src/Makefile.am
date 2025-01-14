@@ -13,6 +13,7 @@ SOURCES = \
 	causes/periodic.c \
 	causes/pressure.c \
 	causes/pressure_rate.c \
+	causes/adaptivemmd_causes.c \
 	causes/slabinfo.c \
 	causes/time_of_day.c \
 	causes/top.c \
@@ -31,6 +32,7 @@ SOURCES = \
 	effects/sd_bus_setting.c \
 	effects/snooze.c \
 	effects/validate.c \
+	effects/adaptivemmd_effects.c \
 	effect.c \
 	effect.h \
 	log.c \
@@ -45,17 +47,19 @@ SOURCES = \
 	utils/mem_utils.c \
 	utils/path_utils.c \
 	utils/pressure_utils.c \
-	utils/sched_utils.c
+	utils/sched_utils.c \
+	utils/adaptivemmd_utils.c \
+	adaptivemmd.h
 
 adaptived_SOURCES = ${SOURCES}
-adaptived_CFLAGS = ${AM_CFLAGS} ${CFLAGS}  ${CODE_COVERAGE_CFLAGS} -Wall
+adaptived_CFLAGS = ${AM_CFLAGS} ${CFLAGS}  ${CODE_COVERAGE_CFLAGS}
 adaptived_LDFLAGS = ${AM_LDFLAGS} ${LDFLAGS} ${CODE_COVERAGE_LIBS} -ljson-c -lpthread -lsystemd
 sbin_PROGRAMS = adaptived
 
 libadaptived_la_SOURCES = ${SOURCES}
 libadaptived_la_LIBADD = ${CODE_COVERAGE_LIBS} -ljson-c -lpthread -lsystemd
 libadaptived_la_CFLAGS = ${AM_CFLAGS} ${CFLAGS} ${CODE_COVERAGE_CFLAGS} -fPIC \
-		      -fvisibility=hidden -Wall
+		      -fvisibility=hidden
 libadaptived_la_LDFLAGS = ${AM_LDFLAGS} ${CODE_COVERAGE_LDFLAGS} ${LDFLAGS} \
 		       -version-number ${VERSION_MAJOR}:${VERSION_MINOR}:${VERSION_MICRO}
 lib_LTLIBRARIES = libadaptived.la
