@@ -152,9 +152,16 @@ void rule_destroy(struct adaptived_rule ** rule);
  * mem_utils defines
  */
 
-#define PROC_MEMINFO	"/proc/meminfo"
-#define PROC_SLABINFO   "/proc/slabinfo"
-#define PROC_STAT   	"/proc/stat"
+#define PROC_BUDDYINFO		"/proc/buddyinfo"
+#define PROC_ZONEINFO		"/proc/zoneinfo"
+#define PROC_VMSTAT		"/proc/vmstat"
+#define PROC_MEMINFO		"/proc/meminfo"
+#define PROC_KPAGECOUNT		"/proc/kpagecount"
+#define PROC_KPAGEFLAGS		"/proc/kpageflags"
+#define PROC_MODULES		"/proc/modules"
+#define PROC_SLABINFO		"/proc/slabinfo"
+#define PROC_STAT   		"/proc/stat"
+#define MM_HUGEPAGESINFO	"/sys/kernel/mm/hugepages"
 
 /*
  * mem_utils slabinfo defines

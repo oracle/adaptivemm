@@ -64,6 +64,7 @@ enum effect_enum {
 	EFFECT_SD_BUS_SETTING,
 	EFFECT_KILL_PROCESSES,
 	EFFECT_SIGNAL,
+	EFFECT_ADAPTIVEMMD_EFFECTS,
 
 	EFFECT_CNT
 };
@@ -152,5 +153,10 @@ int signal_init(struct adaptived_effect * const eff, struct json_object *args_ob
 		const struct adaptived_cause * const cse);
 int signal_main(struct adaptived_effect * const eff);
 void signal_exit(struct adaptived_effect * const eff);
+
+int adaptivemmd_effects_init(struct adaptived_effect * const eff, struct json_object *args_obj,
+		const struct adaptived_cause * const cse);
+int adaptivemmd_effects_main(struct adaptived_effect * const eff);
+void adaptivemmd_effects_exit(struct adaptived_effect * const eff);
 
 #endif /* __ADAPTIVED_EFFECT_H */

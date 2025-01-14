@@ -63,6 +63,7 @@ enum cause_enum {
 	MEMORYSTAT,
 	TOP,
 	CGROUP_MEMORY_SETTING,
+	ADAPTIVEMMD_CAUSES,
 
 	CAUSE_CNT
 };
@@ -137,5 +138,9 @@ void memorystat_exit(struct adaptived_cause * const cse);
 int top_init(struct adaptived_cause * const cse, struct json_object *args_obj, int interval);
 int top_main(struct adaptived_cause * const cse, int time_since_last_run);
 void top_exit(struct adaptived_cause * const cse);
+
+int adaptivemmd_causes_init(struct adaptived_cause * const cse, struct json_object *args_obj, int interval);
+int adaptivemmd_causes_main(struct adaptived_cause * const cse, int time_since_last_run);
+void adaptivemmd_causes_exit(struct adaptived_cause * const cse);
 
 #endif /* __ADAPTIVED_CAUSE_H */
