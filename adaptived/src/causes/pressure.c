@@ -146,6 +146,12 @@ int pressure_init(struct adaptived_cause * const cse, struct json_object *args_o
 		opts->duration = -1;
 	} else if (ret) {
 		goto error;
+	} else {
+		if (opts->duration <= 0) {
+			adaptived_err("Duration must be greater than zero\n");
+			ret = -EINVAL;
+			goto error;
+		}
 	}
 	adaptived_info("%s: ret=%d, opts->duration=%d\n", __func__, ret, opts->duration);
 
@@ -237,7 +243,7 @@ int pressure_main(struct adaptived_cause * const cse, int time_since_last_run)
 	 *    (opts->current_duration >= opts->duration)
 	 */
 	if ((opts->duration < 0 && opts->current_duration > 0) ||
-	    (opts->current_duration >= opts->duration)) {
+	    (opts->duration > 0 && opts->current_duration >= opts->duration)) {
 		opts->current_duration = 0;
 		return 1;
 	}
