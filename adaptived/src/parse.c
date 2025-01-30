@@ -600,10 +600,15 @@ int parse_rule(struct adaptived_ctx * const ctx, struct json_object * const rule
 	 * do not goto error after this point.  we have added the rule
 	 * to the rules linked list
 	 */
-	if (!ctx->rules)
+	if (!ctx->rules) {
 		ctx->rules = rule;
-	else
-		ctx->rules->next = rule;
+	} else {
+		tmp_rule = ctx->rules;
+
+		while (tmp_rule->next)
+			tmp_rule = tmp_rule->next;
+		tmp_rule->next = rule;
+	}
 
 	return ret;
 
