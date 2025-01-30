@@ -443,6 +443,12 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 	}
 
 	pthread_mutex_lock(&ctx->ctx_mutex);
+	rule = ctx->rules;
+	while(rule) {
+		adaptived_dbg("Rule \"%s\" loaded\n", rule->name);
+		rule = rule->next;
+	}
+
         if (ctx->daemon_mode) {
 		adaptived_dbg("adaptived_loop: Try to run as daemon, nochdir = %d, noclose = %d\n",
 			ctx->daemon_nochdir, ctx->daemon_noclose);
@@ -456,9 +462,9 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 	} else {
 		adaptived_dbg("adaptived_loop: Debug mode. Skip running as daemon.\n");
 	}
-	pthread_mutex_unlock(&ctx->ctx_mutex);
 
 	ctx->loop_cnt = 0;
+	pthread_mutex_unlock(&ctx->ctx_mutex);
 
 	while (1) {
 		pthread_mutex_lock(&ctx->ctx_mutex);
