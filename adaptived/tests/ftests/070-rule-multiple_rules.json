@@ -1,0 +1,99 @@
+{
+	"rules": [
+		{
+			"name": "1",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Rule 1\n"
+					}
+				}
+			]
+		},
+		{
+			"name": "2",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Rule 2\n"
+					}
+				}
+			]
+		},
+		{
+			"name": "3",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Rule 3\n"
+					}
+				}
+			]
+		},
+		{
+			"name": "4",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Rule 4\n"
+					}
+				}
+			]
+		},
+		{
+			"name": "5",
+			"causes": [
+				{
+					"name": "always",
+					"args": {
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "stdout",
+						"message": "Rule 5\n"
+					}
+				}
+			]
+		}
+	]
+}
