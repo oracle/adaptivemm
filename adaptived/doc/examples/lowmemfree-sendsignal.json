@@ -1,0 +1,29 @@
+{
+	"rules": [
+		{
+			"name": "When MemFree falls below 2 GB, send SIGALRM (signal 14) to the monitoring program",
+			"description": "This configuration file will monitor MemFree in /proc/meminfo, and when it falls below 2 GB, it will send a signal to the monitoring program.  The monitoring program could then disable low-priority processes, migrate some processes to another machine, or if this is a VM, add more memory to the VM.",
+			"causes": [
+				{
+					"name": "meminfo",
+					"args": {
+						"field": "MemFree",
+						"threshold": "2G",
+						"operator": "lessthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "signal",
+					"args": {
+						"proc_names": [
+							{ "name": "monitor_program" }
+						],
+						"signal": 14
+					}
+				}
+			]
+		}
+	]
+}
