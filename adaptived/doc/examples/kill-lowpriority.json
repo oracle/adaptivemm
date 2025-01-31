@@ -1,0 +1,29 @@
+{
+	"rules": [
+		{
+			"name": "When there is pressure on the high-priority cgroup, kill processes in the low-priority cgroup",
+			"description": "This configuration was motivated by Meta's oomd daemon.  By placing important processes in a cgroup, say highpriority.scope, adaptived can ensure that these processes get utmost priority when there is additional load on the machine.  In this example, adaptived kills processes in the low-priority cgroup until the pressure abates.  Note that unlike oomd, adaptived can operated on memory, cpu, or io PSI pressure (or some other measurement entirely) and not just memory",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/highpriority.scope/cpu.pressure",
+						"threshold": 10.0,
+						"operator": "greaterthan",
+						"measurement": "full-avg10",
+						"duration": 2000
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "kill_cgroup",
+					"args": {
+						"cgroup": "/sys/fs/cgroup/database.slice/lowpriority.scope",
+						"count": 1
+					}
+				}
+			]
+		}
+	]
+}

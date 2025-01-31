@@ -1,0 +1,112 @@
+{
+	"rules": [
+		{
+			"name": "1) When there is pressure on the high-priority cgroup, increase its cpu.weight",
+			"description": "The effects in this example are somewhat contrived as cpu.weight should allow other cgroups to consume any extra cpu cycles that the high-priority cgroup does not need.  But it's a good example of how adaptived can dynamically adjust settings as the system's workload changes.",
+			"note1": "Note that we rapidly increase the high-priority cgroup's cpu.weight when there is pressure, but we slowly decrease it when pressure abates.  We want to err on the side of too much CPU assigned to the high-priority cgroup.",
+			"note2": "We are using the cgroup_setting effect in the first two rules because highpriority.scope has been delegated.  If you're modifying a cgroup managed by systemd, you should use the sd_bus_setting effect.  (See the last two rules in this file for examples.)",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/highpriority.scope/cpu.pressure",
+						"threshold": 10.0,
+						"operator": "greaterthan",
+						"measurement": "full-avg10"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "/sys/fs/cgroup/database.slice/highpriority.scope/cpu.weight",
+						"value": 100,
+						"operator": "add",
+						"limit": 5000
+					}
+				}
+			]
+		},
+		{
+			"name": "2) When pressure on the high-priority cgroup has abated, decrease the its cpu.weight",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/highpriority.scope/cpu.pressure",
+						"threshold": 0.1,
+						"duration": 5000,
+						"operator": "lessthan",
+						"measurement": "full-avg10"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_setting",
+					"args": {
+						"setting": "/sys/fs/cgroup/database.slice/highpriority.scope/cpu.weight",
+						"value": 100,
+						"operator": "subtract",
+						"limit": 100
+					}
+				}
+			]
+		},
+		{
+			"name": "3) When there is pressure on the database slice, increase its cpu.weight",
+			"note": "systemd owns the root cgroup and its immediate children.  Therefore we need to request cgroup changes via DBus remote system calls into systemd",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/cpu.pressure",
+						"threshold": 10.0,
+						"operator": "greaterthan",
+						"measurement": "full-avg10"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "database.slice",
+						"setting": "CPUWeight",
+						"value": 100,
+						"operator": "add",
+						"limit": 5000
+					}
+				}
+			]
+		},
+		{
+			"name": "4) When pressure on database slice has abated, decrease its cpu.weight",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/cpu.pressure",
+						"threshold": 0.1,
+						"duration": 5000,
+						"operator": "lessthan",
+						"measurement": "full-avg10"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "sd_bus_setting",
+					"args": {
+						"target": "database.slice",
+						"setting": "CPUWeight",
+						"value": 100,
+						"operator": "subtract",
+						"limit": 100
+					}
+				}
+			]
+		}
+	]
+}
