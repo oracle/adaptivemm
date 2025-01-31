@@ -1,0 +1,37 @@
+{
+	"rules": [
+		{
+			"name": "When mem used (according to top) exceeds 4G, save off critical memory logs",
+			"description": "When memory exceeds a certain threshold, this could be a sign of a memory leak or other problem.  Save off critical log files for later analysis.  This could be useful on production machines where more intrusive debugging mechanisms aren't available.", 
+			"causes": [
+				{
+					"name": "top",
+					"args": {
+						"component": "mem",
+						"field": "used",
+						"threshold": "4G",
+						"operator": "greaterthan"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "logger",
+					"args": {
+						"logfile": "anomaly.log",
+						"date_format": "%Y-%m-%d-%H:%M:%S-%Z",
+						"utc": true,
+						"files": [
+							{
+								"file": "/proc/meminfo"
+							},
+							{
+								"file": "/proc/slabinfo"
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}
