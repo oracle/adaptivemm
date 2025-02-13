@@ -1,0 +1,56 @@
+{
+	"rules": [
+		{
+			"name": "When there is memory pressure, increase the cgroup's memory.high",
+			"description": "These rules can be used to determine an application's minimum memory required.  In other words, these two rules will adjust memory.high to exert memory pressure on the application, and ultimately memory.high will settle approximately at the level where memory pressure is starting to be felt by the application.  The memory.high value computed by this config file can then be used to populate the cgroup's memory.low to ensure that the application gets the minimum memory needed before it experiences memory pressure.",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/db1.scope/memory.pressure",
+						"threshold": 8.0,
+						"duration": 20000,
+						"operator": "greaterthan",
+						"measurement": "some-avg60"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "/sys/fs/cgroup/database.slice/db1.scope/memory.high",
+						"value": "100M",
+						"operator": "add"
+					}
+				}
+			]
+		},
+		{
+			"name": "When memory pressure has abated, decrease the cgroup's memory.high",
+			"causes": [
+				{
+					"name": "pressure",
+					"args": {
+						"pressure_file": "/sys/fs/cgroup/database.slice/db1.scope/memory.pressure",
+						"threshold": 2.0,
+						"duration": 20000,
+						"operator": "lessthan",
+						"measurement": "some-avg60"
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "cgroup_memory_setting",
+					"args": {
+						"setting": "/sys/fs/cgroup/database.slice/db1.scope/memory.high",
+						"value": "100M",
+						"operator": "subtract",
+						"limit": "100M"
+					}
+				}
+			]
+		}
+	]
+}
