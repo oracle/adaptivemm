@@ -72,6 +72,7 @@ int cgroup_setting_psi_init(struct adaptived_effect * const eff, struct json_obj
 		goto error;
 	}
 	opts->cgroup_path = NULL;
+	opts->cgroup_setting = NULL;
 	opts->value.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit.type = ADAPTIVED_CGVAL_CNT;
 	opts->limit_provided = false;
