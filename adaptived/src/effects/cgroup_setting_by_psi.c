@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates.
+ * Copyright (c) 2024-2025, Oracle and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -205,6 +205,8 @@ error:
 	if (opts) {
 		if (opts->cgroup_path)
 			free(opts->cgroup_path);
+		if (opts->cgroup_setting)
+			free(opts->cgroup_setting);
 		adaptived_free_cgroup_value(&opts->value);
 		adaptived_free_cgroup_value(&opts->limit);
 
@@ -461,6 +463,8 @@ void cgroup_setting_psi_exit(struct adaptived_effect * const eff)
 
 	if (opts->cgroup_path)
 		free(opts->cgroup_path);
+	if (opts->cgroup_setting)
+		free(opts->cgroup_setting);
 	adaptived_free_cgroup_value(&opts->value);
 	adaptived_free_cgroup_value(&opts->limit);
 	free(opts);
