@@ -142,12 +142,6 @@ jobs:
       run: |
         cat adaptived/tests/ftests/ftests-wrapper.sh.log
         cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
-    - name: Archive test logs
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: Adaptived functional test logs
-        path: adaptived/tests/*/*.log
     - name: Collate code coverage results
       uses: ./.github/actions/code-coverage
     - name: Upload code coverage results
@@ -155,14 +149,8 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ./lcov.total
-        flag-name: "Adaptived Functional Tests"
+        flag-name: "Adaptived Functional Tests - cgv1"
         parallel: True
-    - name: Archive code coverage results
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: Adaptived Functional Tests Code Coverage
-        path: lcov.*
 
   functional_tests_cgv2:
     name: Adaptived Functional Tests v2
@@ -185,12 +173,6 @@ jobs:
       run: |
         cat adaptived/tests/ftests/ftests-wrapper.sh.log
         cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
-    - name: Archive test logs
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: Adaptived functional test logs
-        path: adaptived/tests/*/*.log
     - name: Collate code coverage results
       uses: ./.github/actions/code-coverage
     - name: Upload code coverage results
@@ -198,14 +180,8 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ./lcov.total
-        flag-name: "Adaptived Functional Tests"
+        flag-name: "Adaptived Functional Tests - cgv2"
         parallel: True
-    - name: Archive code coverage results
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: Adaptived Functional Tests Code Coverage
-        path: lcov.*
 
   finalize:
     name: Finalize the test run
