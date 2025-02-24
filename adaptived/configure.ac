@@ -1,4 +1,4 @@
-dnl # Copyright (c) 2024, Oracle and/or its affiliates.
+dnl # Copyright (c) 2024-2025, Oracle and/or its affiliates.
 dnl # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 dnl #
 dnl # This code is free software; you can redistribute it and/or modify it
@@ -19,7 +19,7 @@ dnl # Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
 dnl # or visit www.oracle.com if you need additional information or have any
 dnl # questions.
 
-AC_INIT([adaptived],[1.0.0])
+AC_INIT([adaptived],[1.0.1])
 
 dnl #
 dnl # autoconf configuration
