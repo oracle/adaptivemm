@@ -2,5 +2,10 @@ adaptived: Releases
 ===============================================================================
 https://github.com/oracle/adaptivemm
 
+* Version 1.0.1 - February 24, 2025
+- Fix bug where only two or fewer rules could be loaded
+- Fix duration bug in PSI cause
+- Fix memory leak reported by coverity
+
 * Version 1.0.0 - November 8, 2024
 - Initial release
