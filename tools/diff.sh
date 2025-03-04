@@ -55,7 +55,7 @@ if [[ $RETURN_ADAPTIVED == true ]];
 then
 	DIR=adaptived/
 else
-	DIR=.
+	DIR=adaptivemm/
 fi
 CMD="git diff --name-only $START_HASH..$END_HASH $DIR"
 FILES=$($CMD)

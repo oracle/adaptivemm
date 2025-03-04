@@ -44,7 +44,7 @@ jobs:
           BRANCH: ${{ github.base_ref }}
         run: |
           echo "BRANCH = $BRANCH"
-          if [[ -n "$BRANCH" ]]; then amm_modified=$(./diff.sh -m -s origin/$BRANCH) ; else amm_modified=$(./diff.sh -m) ; fi
+          if [[ -n "$BRANCH" ]]; then amm_modified=$(./tools/diff.sh -m -s origin/$BRANCH) ; else amm_modified=$(./tools/diff.sh -m) ; fi
           echo "amm_modified=$amm_modified"
           echo "amm_modified=$amm_modified" >> $GITHUB_OUTPUT
       - name: Set adaptived-modified to 1 if files were changed
@@ -53,7 +53,7 @@ jobs:
           BRANCH: ${{ github.base_ref }}
         run: |
           echo "BRANCH = $BRANCH"
-          if [[ -n "$BRANCH" ]]; then ad_modified=$(./diff.sh -d -s origin/$BRANCH) ; else ad_modified=$(./diff.sh -d) ; fi
+          if [[ -n "$BRANCH" ]]; then ad_modified=$(./tools/diff.sh -d -s origin/$BRANCH) ; else ad_modified=$(./tools/diff.sh -d) ; fi
           echo "ad_modified=$ad_modified"
           echo "ad_modified=$ad_modified" >> $GITHUB_OUTPUT
 
@@ -67,6 +67,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the current adaptivemm executable
         run: |
+          pushd adaptivemm/src
           make
           sha256sum -b adaptivemmd > adaptivemmd.SHA256
           cat adaptivemmd.SHA256
@@ -81,6 +82,7 @@ jobs:
         id: shastep
         continue-on-error: true
         run: |
+          pushd adaptivemm/src
           make clean
           make
           sha256sum -b adaptivemmd
@@ -107,7 +109,7 @@ jobs:
           echo "BRANCH = $BRANCH"
           git checkout ${{ github.sha }}
           echo "The following files were changed:"
-          if [[ -n "$BRANCH" ]]; then ./diff.sh -m -s origin/$BRANCH -v ; else ./diff.sh -m -v ; fi
+          if [[ -n "$BRANCH" ]]; then ./tools/diff.sh -m -s origin/$BRANCH -v ; else ./tools/diff.sh -m -v ; fi
 
   adaptived-modified-check:
     name: adaptived modification status
@@ -170,4 +172,4 @@ jobs:
           echo "BRANCH = $BRANCH"
           git checkout ${{ github.sha }}
           echo "The following files were changed:"
-          if [[ -n "$BRANCH" ]]; then ./diff.sh -d -s origin/$BRANCH -v ; else ./diff.sh -d -v ; fi
+          if [[ -n "$BRANCH" ]]; then ./tools/diff.sh -d -s origin/$BRANCH -v ; else ./tools/diff.sh -d -v ; fi
