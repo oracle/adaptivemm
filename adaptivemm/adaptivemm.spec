@@ -28,18 +28,22 @@ memory shortage and/or fragmentation by taking proactive measures.
 
 %prep
 %setup -q
+cd adaptivemm
 
 %build
+cd adaptivemm/src
 make %{?_smp_mflags}
 
 %install
-
+cd adaptivemm/src
 install -D -m 755 adaptivemmd %{buildroot}%{_sbindir}/adaptivemmd
+cd ..
 install -D -m 644 adaptivemmd.service %{buildroot}%{_unitdir}/adaptivemmd.service
 install -D -m 644 50-adaptivemm.preset %{buildroot}%{_presetdir}/50-adaptivemm.preset
 install -D -m 644 adaptivemmd.cfg %{buildroot}%{_sysconfdir}/sysconfig/adaptivemmd
+cd doc
 install -D -m 644 adaptivemmd.8 %{buildroot}%{_mandir}/man8/adaptivemmd.8
-
+cd ..
 %post
 %systemd_post adaptivemmd.service
 
@@ -50,8 +54,8 @@ install -D -m 644 adaptivemmd.8 %{buildroot}%{_mandir}/man8/adaptivemmd.8
 %systemd_preun adaptivemmd.service
 
 %files
-%license LICENSE.txt
-%doc README.md CONTRIBUTING.md SECURITY.md
+%license adaptivemm/LICENSE.txt
+%doc adaptivemm/README.md adaptivemm/CONTRIBUTING.md adaptivemm/SECURITY.md
 %attr(0640,root,root) %config(noreplace) /etc/sysconfig/adaptivemmd
 %{_sbindir}/adaptivemmd
 %{_mandir}/man8/adaptivemmd.8*
@@ -62,7 +66,7 @@ install -D -m 644 adaptivemmd.8 %{buildroot}%{_mandir}/man8/adaptivemmd.8
 * Mon Dec 11 2023 Khalid Aziz <khalid.aziz@oracle.com> - 2.1.0-1
 - Add module to look for possible memory leaks
 
-* Tue Feb 9 2022 Khalid Aziz <khalid.aziz@oracle.com> - 2.0.1-1
+* Wed Feb 9 2022 Khalid Aziz <khalid.aziz@oracle.com> - 2.0.1-1
 - Fix total memory calculation for ARM since it is slightly
   different from x86
 

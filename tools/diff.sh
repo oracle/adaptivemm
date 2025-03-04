@@ -53,7 +53,7 @@ done
 
 if [[ $RETURN_ADAPTIVED == true ]];
 then
-	DIR=adaptived/
+	DIR=adaptived/adaptivemm/
 else
 	DIR=.
 fi
