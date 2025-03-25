@@ -33,8 +33,7 @@
  * best.  The formulation is for the special case in which x_i = i + 1 - N;
  * this reduces the need for storage and permits constant time updates.
  */
-static int
-lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
+static int lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
 	long long *m, long long *c)
 {
 	long long sigma_x, sigma_y;
@@ -145,8 +144,7 @@ lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
  * is a set of bits which represent which condition has been observed -
  * potential free memory exhaustion, and potential severe fragmentation.
  */
-unsigned long
-predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
+unsigned long predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 	unsigned long high_wmark, unsigned long low_wmark, int nid)
 {
 	int order;
