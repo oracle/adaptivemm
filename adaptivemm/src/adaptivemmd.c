@@ -131,8 +131,7 @@ int max_compaction_order = MAX_ORDER - 4;
 /*
  * Clean up before exiting
  */
-void
-bailout(int retval)
+void bailout(int retval)
 {
 	if (del_lock)
 		unlink(LOCKFILE);
@@ -143,14 +142,12 @@ bailout(int retval)
 /*
  * Signal handler to ensure cleanup before exiting
  */
-void
-mysig(int signo)
+void mysig(int signo)
 {
 	bailout(0);
 }
 
-void
-log_msg(int level, char *fmt, ...)
+void log_msg(int level, char *fmt, ...)
 {
 	va_list args;
 
@@ -191,8 +188,7 @@ log_msg(int level, char *fmt, ...)
 /*
  * Initiate memory compactiomn in the kernel on a given node.
  */
-void
-compact(int node_id)
+void compact(int node_id)
 {
 	char compactpath[PATH_MAX];
 	int fd;
@@ -221,8 +217,7 @@ compact(int node_id)
  * Parse a single input line for buddyinfo;  return 1 if successful
  * or 0 otherwise.
  */
-int
-scan_buddyinfo(char *line, char *node, char *zone, unsigned long *nr_free)
+int scan_buddyinfo(char *line, char *node, char *zone, unsigned long *nr_free)
 {
 	char copy[LINE_MAX];
 	unsigned int order;
@@ -259,8 +254,7 @@ scan_buddyinfo(char *line, char *node, char *zone, unsigned long *nr_free)
 #define NO_ERR	1
 #define ERR	0
 #define EOF_RET	-1
-int
-get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
+int get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
 {
 	char line[LINE_MAX];
 	char node[FLDLEN], zone[FLDLEN];
@@ -333,8 +327,7 @@ get_next_node(FILE *ifile, int *nid, unsigned long *nr_free)
  *	-1	Failed to read hugepages info
  *	>=0	Percentage change in number of hugepages since last update
  */
-int
-update_hugepages()
+int update_hugepages()
 {
 	DIR *dp;
 	struct dirent *ep;
@@ -401,8 +394,7 @@ update_hugepages()
 #define ZONE_HIGH	"high"
 #define ZONE_MNGD	"managed"
 #define ZONE_PGST	"pagesets"
-int
-update_zone_watermarks()
+int update_zone_watermarks()
 {
 	FILE *fp = NULL;
 	size_t len = 256;
@@ -492,8 +484,7 @@ out:
  * computing watermarks that are more in line with real
  * available memory.
  */
-void
-rescale_maxwsf()
+void rescale_maxwsf()
 {
 	unsigned long reclaimable_pages, total_managed = 0;
 	unsigned long gap, new_wsf;
@@ -531,8 +522,7 @@ rescale_maxwsf()
 /*
  * Get the number of pages stolen by kswapd from /proc/vmstat.
  */
-unsigned long
-no_pages_reclaimed()
+unsigned long no_pages_reclaimed()
 {
 	FILE *fp = NULL;
 	size_t len = 100;
@@ -569,8 +559,7 @@ no_pages_reclaimed()
  * Dynamically rescale the watermark_scale_factor to make kswapd
  * more aggressive
  */
-void
-rescale_watermarks(int scale_up)
+void rescale_watermarks(int scale_up)
 {
 	int fd, i, count;
 	unsigned long scaled_watermark, frac_free;
@@ -794,8 +783,7 @@ out:
 	close(fd);
 }
 
-static inline unsigned long
-get_msecs(struct timespec *spec)
+static inline unsigned long get_msecs(struct timespec *spec)
 {
 	if (!spec)
 		return -1;
@@ -807,8 +795,7 @@ get_msecs(struct timespec *spec)
  * check_permissions() - Check all required permissions for this program to
  *			run successfully
  */
-static int
-check_permissions(void)
+static int check_permissions(void)
 {
 	int fd;
 	char tmpstr[40];
@@ -875,8 +862,7 @@ check_permissions(void)
  *	of 1000, so above value will be translated to 1 which will be
  *	0.1%
  */
-void
-update_neg_dentry(bool init)
+void update_neg_dentry(bool init)
 {
 	int fd;
 
@@ -937,8 +923,7 @@ update_neg_dentry(bool init)
  * PFN. This flag can be used to identify PFNs that do not have a
  * backing pahysical page
  */
-long
-get_unmapped_pages()
+long get_unmapped_pages()
 {
 #define BATCHSIZE	8192
 	int fd1, fd2;
@@ -1015,8 +1000,7 @@ nextloop:
 /*
  * pr_meminfo() - log /proc/meminfo contents
  */
-void
-pr_meminfo(int level)
+void pr_meminfo(int level)
 {
 	FILE *fp = NULL;
 	char line[LINE_MAX];
@@ -1077,8 +1061,7 @@ char * const memdata_item_name[NR_MEMDATA_ITEMS] = {
  * cmp_meminfo() - Compare two instances of meminfo data and print the ones
  *		that have changed considerably
  */
-void
-cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
+void cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
 {
 	int i;
 	unsigned long delta;
@@ -1129,8 +1112,7 @@ cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
  * can be updated if (MemTotal - mem_good) drops below previous
  * baseline.
  */
-void
-check_memory_leak(bool init)
+void check_memory_leak(bool init)
 {
 	static unsigned long base_mem, mem_remain, gr_count, prv_free;
 	static unsigned long pr_memdata[NR_MEMDATA_ITEMS];
@@ -1417,8 +1399,7 @@ out:
  * updates_for_hugepages() - Update any values that need to be updated
  *	whenever number of hugepages on system changes significantly
  */
-void
-updates_for_hugepages(int delta)
+void updates_for_hugepages(int delta)
 {
 	/*
 	 * Don't do anything for delta less than 5%
@@ -1443,8 +1424,7 @@ updates_for_hugepages(int delta)
  *		may choose to perform only initiazations when this flag
  *		is set
  */
-void
-check_memory_pressure(bool init)
+void check_memory_pressure(bool init)
 {
 	static int compaction_requested[MAX_NUMANODES];
 	static unsigned long last_bigpages[MAX_NUMANODES], last_reclaimed;
@@ -1619,8 +1599,7 @@ check_memory_pressure(bool init)
  *	adaptivemmd startup
  *
  */
-void
-one_time_initializations()
+void one_time_initializations()
 {
 	/*
 	 * Update free page and hugepage counts before initialization
@@ -1653,8 +1632,7 @@ one_time_initializations()
 #define OPT_NEG_DENTRY2	"NEG_DENTRY_CAP"
 #define OPT_ENB_MEMLEAK	"ENABLE_MEMLEAK_CHECK"
 
-int
-parse_config()
+int parse_config()
 {
 	FILE *fstream;
 	char *buf = NULL;
@@ -1767,8 +1745,7 @@ nextline:
 	return 1;
 }
 
-void
-help_msg(char *progname)
+void help_msg(char *progname)
 {
 	(void) printf(
 		    "usage: %s "
@@ -1792,8 +1769,7 @@ help_msg(char *progname)
 
 #define TMPCHARBUFSIZE	128
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int c, i, lockfd;
 	int errflag = 0;
