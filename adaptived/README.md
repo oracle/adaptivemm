@@ -6,9 +6,9 @@ in realtime to adapt to a changing workload.
 
 Adaptived has several built-in causes and effects.  When using only the built-in
 causes and effects, adaptived can be invoked directly by calling the adaptived
-daemon.  See the [Getting Started Section](https://github.com/oracle/adaptivemm/tree/readme/adaptived#getting-started).
+daemon.  See the [Getting Started Section](./README.md#getting-started).
 To use custom cause and effects, a user must use the adaptived library
-and its C APIs.  See the [Advanced Use Case Section](https://github.com/oracle/adaptivemm/tree/readme/adaptived#advanced-use-case---custom-causes-andor-effects).
+and its C APIs.  See the [Advanced Use Case Section](./README.md#advanced-use-case---custom-causes-andor-effects).
 If there is sufficient demand, we may consider adding Python
 bindings.
 
