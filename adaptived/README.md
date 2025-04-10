@@ -4,24 +4,23 @@ automate tasks, manage resources, kill processes, etc.  When used in
 conjunction with cgroups, adaptived can adjust system performance and settings
 in realtime to adapt to a changing workload.
 
-Adaptived has several built-in causes and effects.  When using only the built-in
+adaptived has several built-in causes and effects.  When using only the built-in
 causes and effects, adaptived can be invoked directly by calling the adaptived
 daemon.  See the [Getting Started Section](./README.md#getting-started).
 To use custom cause and effects, a user must use the adaptived library
 and its C APIs.  See the [Advanced Use Case Section](./README.md#advanced-use-case---custom-causes-andor-effects).
-If there is sufficient demand, we may consider adding Python
-bindings.
+If there is sufficient demand, we may consider adding Python bindings.
 
 ## Terminology
 
-Adaptived uses the following terminology:
+adaptived uses the following terminology:
 
 * Cause - A cause is an event or measurement that can be used to trigger an
-  effect.  Multiple causes can be connected together in series in a rule.  In
-  cases like this, the causes will be processed in the order they are
-  enumerated in the configuration file.  All causes in a given rule are run
-  every loop through adaptived.  Effects will only be invoked if all of the
-  causes in the rule are triggered.
+  effect.  When a rule contains multiple causes, the causes will be processed
+  in the order they are enumerated in the configuration file.  All causes in
+  a given rule are run every loop through adaptived - even if an earlier cause
+  did not trigger.  Effects are only invoked if all of the causes in the rule
+  have triggered.
 * Effect - An effect is an action to be taken when the cause(s) in the same
   rule are triggered.  Multiple effects can be connected together in a rule.
   Baring an error, each effect will run when the associated causes are
@@ -32,9 +31,9 @@ Adaptived uses the following terminology:
 
 ## Architecture
 
-Adaptived's main processing loop operates as shown in the flow chart below:
+adaptived's main processing loop operates as shown in the flow chart below:
 
-![Adaptived flow chart](./doc/examples/flow-chart.png)
+![adaptived flow chart](./doc/examples/flow-chart.png)
 
 ## Getting Started
 
@@ -60,6 +59,9 @@ run and output the aforementioned message.
 
 ## Real-World Use Cases
 
+The following use cases utilize example JSON configuration files located in
+adaptived's [./doc/examples](./doc/examples) directory.
+
 * Given two cgroups, high-priority and low-priority, kill processes in the
   low-priority cgroup when there is PSI pressure on the high-priority cgroup
   [[1]](./doc/examples/kill-lowpriority.json)
@@ -81,7 +83,7 @@ run and output the aforementioned message.
 
 ## Advanced Use Case - Custom Causes and/or Effects
 
-Adaptived allows for users to create their own custom causes and effects.  (Note
+adaptived allows for users to create their own custom causes and effects.  (Note
 that pull requests are encouraged, and we encourage users to submit new causes
 and effects to the adaptived library so that they can be built in.  But we realize
 that some causes and/or effects may be proprietary or just too obscure to add
