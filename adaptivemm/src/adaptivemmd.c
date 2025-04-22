@@ -58,12 +58,15 @@
 #define KPAGEFLAGS		"/proc/kpageflags"
 #define MODULES			"/proc/modules"
 #define HUGEPAGESINFO		"/sys/kernel/mm/hugepages"
+#define DENTRYINFO		"/proc/sys/fs/dentry-state"
+#define INODEINFO		"/proc/sys/fs/inode-nr"
 
 /*
  * System files to control reclamation and compaction
  */
 #define RESCALE_WMARK		"/proc/sys/vm/watermark_scale_factor"
 #define	COMPACT_PATH_FORMAT	"/sys/devices/system/node/node%d/compact"
+#define VFS_CACHE_PRESSURE	"/proc/sys/vm/vfs_cache_pressure"
 
 /*
  * System files to control negative dentries
@@ -76,11 +79,15 @@
 #define CONFIG_FILE1		"/etc/sysconfig/adaptivemmd"
 #define CONFIG_FILE2		"/etc/default/adaptivemmd"
 
+#define FS_FIELDS	2
 #define MAX_NUMANODES	1024
 
 #define MAX_VERBOSE	5
 #define MAX_AGGRESSIVE	3
 #define MAX_NEGDENTRY	100
+
+#define MAX_VFS_CACHE_PRESSURE	1000
+#define MIN_VFS_CACHE_PRESSURE	3
 
 /*
  * Number of consecutive samples showing growth in unaccounted memory
@@ -91,17 +98,22 @@
 /* Minimum % change in meminfo numbers to trigger warnings */
 #define MEM_TRIGGER_DELTA	10
 
+int MAX(unsigned long a, unsigned long b) { return((a) > (b) ? a : b); }
+int MIN(unsigned long a, unsigned long b) { return((a) < (b) ? a : b); }
+
 unsigned long min_wmark[MAX_NUMANODES], low_wmark[MAX_NUMANODES];
 unsigned long high_wmark[MAX_NUMANODES], managed_pages[MAX_NUMANODES];
 unsigned long total_free_pages, total_cache_pages, total_hugepages, base_psize;
 long compaction_rate, reclaim_rate;
 struct lsq_struct page_lsq[MAX_NUMANODES][MAX_ORDER];
+struct lsq_struct fs_lsq[FS_FIELDS];
 int dry_run;
 int debug_mode, verbose, del_lock = 0;
 unsigned long maxgap;
 int aggressiveness = 2;
 int periodicity, skip_dmazone;
 int neg_dentry_pct = 15;	/* default is 1.5% */
+int prefer_object_caching = 1;
 
 /* Flags to enable various modules */
 bool memory_pressure_check_enabled = true;
@@ -126,7 +138,6 @@ unsigned int mywsf;
  * value
  */
 int max_compaction_order = MAX_ORDER - 4;
-
 
 /*
  * Clean up before exiting
@@ -183,6 +194,14 @@ void log_msg(int level, char *fmt, ...)
 		vsyslog(level, fmt, args);
 	}
 	va_end(args);
+}
+
+static inline unsigned long get_msecs(struct timespec *spec)
+{
+	if (!spec)
+		return -1;
+
+	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
 }
 
 /*
@@ -519,6 +538,95 @@ void rescale_maxwsf()
 		log_warn("Failed to compute reasonable WSF, %ld, total pages %ld, reclaimable pages %ld", new_wsf, total_managed, reclaimable_pages);
 }
 
+int parse_fs_files(char * path, unsigned long *data)
+{
+	FILE *fp = NULL;
+	char line[80];
+
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+
+	if (fgets(line, sizeof(line), fp) != NULL)
+		sscanf(line, "%lu\n", data);
+	else {
+		fclose(fp);
+		return -1;
+	}
+
+	fclose(fp);
+	return 0;
+}
+
+int set_vfs_cache_pressure(unsigned long new_cache_pressure)
+{
+	int fd;
+	char scaled_cache_pressure[20];
+
+	sprintf(scaled_cache_pressure, "%ld\n", new_cache_pressure);
+	if ((fd = open(VFS_CACHE_PRESSURE, O_WRONLY)) == -1) {
+		log_err("Failed to open "VFS_CACHE_PRESSURE" (%s)", strerror(errno));
+		return -1;
+	}
+
+	if (write(fd, scaled_cache_pressure, strlen(scaled_cache_pressure)) < 0) {
+		log_err("Failed to write to "VFS_CACHE_PRESSURE" (%s)", strerror(errno));
+		return -1;
+	}
+
+	log_info(1, "New vfs_cache_pressure = %ld", new_cache_pressure);
+	return 0;
+}
+
+/*
+ * rescale vm.vfs_cache_pressure value based on current memory trends
+ */
+void rescale_vfs_cache_pressure()
+{
+	struct timespec spec;
+	unsigned long curr_inodes;
+	unsigned long curr_dentries;
+	unsigned long curr_vfs_cache_pressure;
+	long long dentry_m, inode_m;
+	long long dentry_c, inode_c;
+
+	if (parse_fs_files(VFS_CACHE_PRESSURE, &curr_vfs_cache_pressure) ||
+		parse_fs_files(INODEINFO, &curr_inodes) ||
+		parse_fs_files(DENTRYINFO, &curr_dentries))
+			return;
+
+	clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+
+	if(lsq_fit(&fs_lsq[0], curr_dentries,
+				(long long)get_msecs(&spec),&dentry_m, &dentry_c) ||
+		lsq_fit(&fs_lsq[1], curr_inodes,
+				(long long)get_msecs(&spec), &inode_m, &inode_c))
+			return;
+	/*
+	 * adjust vm.vfs_cache_pressure based on the
+	 * growth of cached inode and dentry objects
+	 */
+	if (prefer_object_caching) {
+		if ((dentry_m > 0 || inode_m > 0) &&
+			curr_vfs_cache_pressure > MIN_VFS_CACHE_PRESSURE) {
+			set_vfs_cache_pressure(curr_vfs_cache_pressure * 0.9);
+		} else if ((dentry_m < 0 || inode_m < 0) &&
+			curr_vfs_cache_pressure < MAX_VFS_CACHE_PRESSURE)
+			set_vfs_cache_pressure(MIN(MAX_VFS_CACHE_PRESSURE,
+						curr_vfs_cache_pressure * 1.1));
+	} else {
+		if ((dentry_m > 0 || inode_m > 0) &&
+			curr_vfs_cache_pressure < MAX_VFS_CACHE_PRESSURE) {
+			set_vfs_cache_pressure(MIN(MAX_VFS_CACHE_PRESSURE,
+					curr_vfs_cache_pressure * 1.1));
+		} else if ((dentry_m < 0 || inode_m < 0) &&
+			curr_vfs_cache_pressure > MIN_VFS_CACHE_PRESSURE)
+			set_vfs_cache_pressure(curr_vfs_cache_pressure * 0.9);
+	}
+
+	return;
+}
+
 /*
  * Get the number of pages stolen by kswapd from /proc/vmstat.
  */
@@ -781,14 +889,6 @@ void rescale_watermarks(int scale_up)
 
 out:
 	close(fd);
-}
-
-static inline unsigned long get_msecs(struct timespec *spec)
-{
-	if (!spec)
-		return -1;
-
-	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
 }
 
 /*
@@ -1596,8 +1696,7 @@ void check_memory_pressure(bool init)
 
 /*
  * one_time_initializations() - Initialize settings that are set once at
- *	adaptivemmd startup
- *
+ * adaptivemmd startup
  */
 void one_time_initializations()
 {
@@ -1631,6 +1730,7 @@ void one_time_initializations()
 #define OPT_NEG_DENTRY1	"NEG-DENTRY-CAP"
 #define OPT_NEG_DENTRY2	"NEG_DENTRY_CAP"
 #define OPT_ENB_MEMLEAK	"ENABLE_MEMLEAK_CHECK"
+#define OPT_PREFER_OBJECT_CACHING "PREFER_OBJECT_CACHING"
 
 int parse_config()
 {
@@ -1728,6 +1828,8 @@ int parse_config()
 				neg_dentry_pct = val;
 		} else if (strncmp(token, OPT_ENB_MEMLEAK, sizeof(OPT_ENB_MEMLEAK)) == 0)
 			memleak_check_enabled = ((val==0)?false:true);
+		else if (strncmp(token, OPT_PREFER_OBJECT_CACHING, sizeof(OPT_PREFER_OBJECT_CACHING)) == 0)
+			prefer_object_caching = val;
 		else {
 			log_err("Error in configuration file at token \"%s\". Proceeding with defaults", token);
 			break;
@@ -1908,7 +2010,6 @@ int main(int argc, char **argv)
 	base_psize = getpagesize()/1024;
 
 	pr_info("adaptivemmd "VERSION" started (verbose=%d, aggressiveness=%d, maxgap=%d)", verbose, aggressiveness, maxgap);
-
 	one_time_initializations();
 
 	while (1) {
@@ -1927,9 +2028,9 @@ int main(int argc, char **argv)
 			updates_for_hugepages(retval);
 		if (maxgap == 0)
 			rescale_maxwsf();
-
 		check_memory_pressure(false);
 		check_memory_leak(false);
+		rescale_vfs_cache_pressure();
 
 		sleep(periodicity);
 	}

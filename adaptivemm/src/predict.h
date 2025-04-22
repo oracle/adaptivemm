@@ -68,6 +68,10 @@ struct frag_info {
 	long long msecs;
 };
 
+
+int lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
+	long long *m, long long *c);
+
 unsigned long predict(struct frag_info *, struct lsq_struct *,
 			unsigned long, unsigned long, int);
 

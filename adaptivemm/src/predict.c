@@ -33,12 +33,13 @@
  * best.  The formulation is for the special case in which x_i = i + 1 - N;
  * this reduces the need for storage and permits constant time updates.
  */
-static int lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
+int lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
 	long long *m, long long *c)
 {
 	long long sigma_x, sigma_y;
 	long sigma_xy, sigma_xx;
 	long long slope_divisor;
+	long long numerator;
 	int i, next;
 	long x_offset;
 
@@ -97,7 +98,8 @@ static int lsq_fit(struct lsq_struct *lsq, long long new_y, long long new_x,
 	if (slope_divisor == 0)
 		return -1;
 
-	*m = ((LSQ_LOOKBACK * sigma_xy - sigma_x * sigma_y) * 100) / slope_divisor;
+	numerator = (LSQ_LOOKBACK * sigma_xy - sigma_x * sigma_y) * 100;
+	*m = numerator / slope_divisor;
 	*c = (sigma_y - *m * sigma_x) / LSQ_LOOKBACK;
 
 	/*
@@ -300,7 +302,7 @@ unsigned long predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * graph.
 		 */
 		clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
-		current_time = tspec.tv_sec*1000 + tspec.tv_nsec/1000 - lsq->x[lsq->next];;
+		current_time = tspec.tv_sec*1000 + tspec.tv_nsec/1000 - lsq->x[lsq->next];
 		if (current_time < 0)
 			current_time = 0;
 		if ((x_cross < 0) ||
