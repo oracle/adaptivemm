@@ -1161,7 +1161,7 @@ char * const memdata_item_name[NR_MEMDATA_ITEMS] = {
  * cmp_meminfo() - Compare two instances of meminfo data and print the ones
  *		that have changed considerably
  */
-void cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
+void cmp_meminfo(unsigned long *memdata, unsigned long *pr_memdata)
 {
 	int i;
 	unsigned long delta;
@@ -1173,7 +1173,9 @@ void cmp_meminfo(int level, unsigned long *memdata, unsigned long *pr_memdata)
 
 		/* Is the change greater than warning trigger level */
 		if (delta > (pr_memdata[i] * (MEM_TRIGGER_DELTA/100)))
-			log_info(level, "%s %s by more than %d (previous = %lu K, current = %lu K)\n", memdata_item_name[i], (pr_memdata[i] < memdata[i] ? "grew":"decreased"), MEM_TRIGGER_DELTA, pr_memdata[i], memdata[i]);
+			log_info(4, "%s %s by more than %d (previous = %lu K, current = %lu K)\n",
+				memdata_item_name[i], (pr_memdata[i] < memdata[i] ? "grew":"decreased"),
+				MEM_TRIGGER_DELTA, pr_memdata[i], memdata[i]);
 	}
 }
 
@@ -1451,7 +1453,7 @@ void check_memory_leak(bool init)
 				(freemem * base_psize),
 				(prv_free * base_psize));
 			pr_meminfo(1);
-			cmp_meminfo(1, memdata, pr_memdata);
+			cmp_meminfo(memdata, pr_memdata);
 		} else {
 			log_info(5, "Background memory use grew by more than %d (%lu -> %lu) K, unmapped memory = %lu K, freemem = %lu K, freemem previously = %lu K, MemAvail = %lu K", MEM_TRIGGER_DELTA,
 				(mem_remain * base_psize),
@@ -1460,7 +1462,7 @@ void check_memory_leak(bool init)
 				(freemem * base_psize),
 				(prv_free * base_psize),
 				(memdata[MEMAVAIL] * base_psize));
-			cmp_meminfo(1, memdata, pr_memdata);
+			cmp_meminfo(memdata, pr_memdata);
 		}
 		mem_remain = unacct_mem;
 	} else if (unacct_mem < (mem_remain * ((100-MEM_TRIGGER_DELTA)/100))){
@@ -1482,7 +1484,7 @@ void check_memory_leak(bool init)
 			(freemem * base_psize),
 			(memdata[MEMAVAIL] * base_psize));
 		pr_meminfo(1);
-		cmp_meminfo(1, memdata, pr_memdata);
+		cmp_meminfo(memdata, pr_memdata);
 		gr_count = 0;
 	}
 
