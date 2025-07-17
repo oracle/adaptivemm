@@ -63,6 +63,29 @@ enum adaptived_attr {
 	ADAPTIVED_ATTR_CNT
 };
 
+enum adaptived_sdata_type {
+	/*
+	 * Custom data.  Can be used by registered functions without forcing a recompile
+	 * of adaptived
+	 */
+	ADAPTIVED_SDATA_CUSTOM = 0,
+	ADAPTIVED_SDATA_STR,
+	ADAPTIVED_SDATA_CGROUP,
+	ADAPTIVED_SDATA_NAME_VALUE,
+
+	ADAPTIVED_SDATA_CNT
+};
+
+enum adaptived_sdata_flags {
+	ADAPTIVED_SDATAF_PERSIST = 0x1
+};
+
+/**
+ * Function to free a custom shared data structure.  Not needed for any other
+ * shared data type, as adaptived knows how to free built-in data types.
+ */
+typedef void (*adaptived_sdata_free)(void * const data);
+
 enum adaptived_cgroup_value_type {
 	ADAPTIVED_CGVAL_STR = 0,
 	ADAPTIVED_CGVAL_LONG_LONG,
@@ -87,6 +110,11 @@ struct adaptived_cgroup_value {
 		long long ll_value;
 		float float_value;
 	} value;
+};
+
+struct adaptived_name_and_value {
+	char *name;
+	struct adaptived_cgroup_value *value;
 };
 
 struct adaptived_rule_stats {
@@ -458,6 +486,66 @@ int adaptived_load_rule(struct adaptived_ctx * const ctx, struct adaptived_rule 
  * @param name Rule name to be unloaded
  */
 int adaptived_unload_rule(struct adaptived_ctx * const ctx, const char * const name);
+
+/**
+ * Method to write shared data to a cause.  Data can be used by downstream effect(s)
+ * @param cse adaptived cause structure
+ * @param type shared data enumeration describing the type of data being store
+ * @param data pointer to the data to be stored
+ * @param free_fn Function to free the shared data.  Only needed for custom data types
+ * @param flags See enum adaptived_sdata_flags
+ *
+ * @note - shared data is deleted/freed at the end of each adaptive main loop unless
+ * 	   the persist flag is set
+ * @note - freeing of data is done by free(), so the *data pointer must be created
+ * 	   via malloc.  It would be possible to avoid this by creating a new type,
+ * 	   e.g. ADAPTIVED_SDATA_INT, and adding handling for it in free_shared_data().
+ * @note - persist can be used to share data bidirectionally between a cause and some
+ * 	   effect(s).  Use with caution, as this tightly couples these causes and
+ * 	   effect(s).
+ */
+int adaptived_write_shared_data(struct adaptived_cause * const cse,
+				enum adaptived_sdata_type type, void *data,
+				adaptived_sdata_free free_fn,
+				uint32_t flags);
+
+/**
+ * Update shared data
+ * @param cse adaptived cause structure
+ * @param index shared data object index
+ * @param type shared data enumeration describing the type of data being store
+ * @param data pointer to the data to be stored
+ * @param flags See enum adaptived_sdata_flags
+ *
+ * @note - If the data pointer is changed, it's up to the caller of this function
+ * 	   to ensure that the previous *data pointer is freed.
+ */
+int adaptived_update_shared_data(struct adaptived_cause * const cse, int index,
+				 enum adaptived_sdata_type type, void *data,
+				 uint32_t flags);
+
+/**
+ * Get the number of shared data objects in this cause
+ * @param cse adaptived cause
+ *
+ * @return number of shared data objects
+ */
+int adaptived_get_shared_data_cnt(const struct adaptived_cause * const cse);
+
+/**
+ * Retrieve one shared data object from the cause
+ * @param cse adaptived cause
+ * @param index shared data object index
+ * @param type Output parameter that tells what type of data is stored in this object
+ * @param data Output parameter that contains the stored data
+ * @param flags See enum adaptived_sdata_flags
+ *
+ * @note You do not need to free the data in the shared data object.  adaptived will
+ * 	 automatically do that at the end of each main processing loop
+ */
+int adaptived_get_shared_data(const struct adaptived_cause * const cse, int index,
+			      enum adaptived_sdata_type * const type, void **data,
+			      uint32_t * const flags);
 
 #ifdef __cplusplus
 } /* extern "C" */

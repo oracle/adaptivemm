@@ -38,6 +38,8 @@ SOURCES = \
 	parse.c \
 	pressure.h \
 	rule.c \
+	shared_data.c \
+	shared_data.h \
 	utils/cgroup_utils.c \
 	utils/sd_bus_utils.c \
 	utils/file_utils.c \
