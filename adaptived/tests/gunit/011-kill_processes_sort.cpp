@@ -63,7 +63,7 @@ class SortPidListTest : public ::testing::Test {
 
 TEST_F(SortPidListTest, Sort)
 {
-	struct pid_info pida[array_size] = { 0 };
+	struct pid_info pida[array_size] = { { 0 } };
 	int i;
 
 	for (i = 0; i < array_size; i++) {
