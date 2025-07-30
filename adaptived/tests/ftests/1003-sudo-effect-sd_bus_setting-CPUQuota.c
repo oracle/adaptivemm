@@ -41,6 +41,9 @@
 static const char * const cgroup_slice_name = "sudo1003.slice";
 static const int expected_quota = 440000;
 static const int expected_period = 1000000;
+static const char * const old_conf_file1 = "/etc/systemd/system.control/sudo1003.slice.d/50-CPUQuota.conf";
+static const char * const old_conf_file2 = "/etc/systemd/system.control/sudo1003.slice.d/50-CPUQuotaPeriodSec.conf";
+static const char * const old_unit_file_dir = "/etc/systemd/system.control/sudo1003.slice.d";
 
 int main(int argc, char *argv[])
 {
@@ -54,6 +57,14 @@ int main(int argc, char *argv[])
 	char * line = NULL;
 	size_t len = 0;
 	ssize_t read;
+
+	/*
+	 * systemd will read from old conf files rather than the cgroup sysfs.  Therefore
+	 * delete them
+	 */
+	delete_file(old_conf_file1);
+	delete_file(old_conf_file2);
+	delete_dir(old_unit_file_dir);
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/1003-sudo-effect-sd_bus_setting-CPUQuota.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';
