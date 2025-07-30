@@ -130,6 +130,7 @@ TEST_F(SharedDataTest, CustomDataShare)
 
 	populate_cause(&cse, 0);
 
+	type = ADAPTIVED_SDATA_STR;
 	ret = adaptived_update_shared_data(&cse, 0, type, &read_data, 0);
 	ASSERT_EQ(ret, -ERANGE);
 
