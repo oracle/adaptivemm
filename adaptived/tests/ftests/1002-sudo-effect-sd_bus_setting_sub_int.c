@@ -40,6 +40,8 @@
 
 static const char * const cgroup_slice_name = "sudo1002.slice";
 static const int expected_value = 89993216; /* Must be multiple of 4K */
+static const char * const old_conf_file = "/etc/systemd/system.control/sudo1002.slice.d/50-MemoryMax.conf";
+static const char * const old_unit_file_dir = "/etc/systemd/system.control/sudo1002.slice.d";
 
 int main(int argc, char *argv[])
 {
@@ -47,6 +49,13 @@ int main(int argc, char *argv[])
 	char config_path[FILENAME_MAX];
 	struct adaptived_ctx *ctx = NULL;
 	int ret, version;
+
+	/*
+	 * systemd will read from old conf files rather than the cgroup sysfs.  Therefore
+	 * delete them
+	 */
+	delete_file(old_conf_file);
+	delete_dir(old_unit_file_dir);
 
 	snprintf(config_path, FILENAME_MAX - 1, "%s/1002-sudo-effect-sd_bus_setting_sub_int.json", argv[1]);
 	config_path[FILENAME_MAX - 1] = '\0';
