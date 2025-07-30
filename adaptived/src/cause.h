@@ -75,6 +75,12 @@ struct adaptived_cause {
 	struct json_object *json; /* only used when building a rule at runtime */
 	struct adaptived_cause *next;
 
+	/*
+	 * Data that can be shared between causes and effects.  It is freed/deleted
+	 * at the end of each adaptived_loop() loop
+	 */
+	struct shared_data *sdata;
+
 	/* private data store for each cause plugin */
 	void *data;
 };

@@ -39,6 +39,7 @@
 #include <adaptived.h>
 
 #include "adaptived-internal.h"
+#include "shared_data.h"
 #include "defines.h"
 
 void cleanup(struct adaptived_ctx *ctx);
@@ -426,6 +427,18 @@ API int adaptived_register_injection_function(struct adaptived_ctx * const ctx,
 	return 0;
 }
 
+static void free_rule_shared_data(struct adaptived_rule * const rule, bool force_delete)
+{
+	struct adaptived_cause *cse;
+
+	cse = rule->causes;
+
+	while(cse) {
+		free_shared_data(cse, force_delete);
+		cse = cse->next;
+	}
+}
+
 API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 {
 	struct adaptived_effect *eff;
@@ -534,7 +547,7 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 				}
 			}
 
-
+			free_rule_shared_data(rule, false);
 			rule = rule->next;
 		}
 
@@ -567,6 +580,12 @@ API int adaptived_loop(struct adaptived_ctx * const ctx, bool parse)
 	}
 
 out:
+	rule = ctx->rules;
+	while (rule) {
+		free_rule_shared_data(rule, true);
+		rule = rule->next;
+	}
+
 	pthread_mutex_unlock(&ctx->ctx_mutex);
 
 	return ret;
