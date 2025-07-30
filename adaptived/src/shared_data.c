@@ -177,6 +177,7 @@ API int adaptived_get_shared_data(const struct adaptived_cause * const cse, int 
 API void free_shared_data(struct adaptived_cause * const cse, bool force_delete)
 {
 	struct shared_data *cur, *next, *prev_valid = NULL, *first_valid = NULL;
+	struct adaptived_name_and_value *name_value;
 	bool do_free, persist;
 
 	if (cse == NULL)
@@ -215,8 +216,6 @@ API void free_shared_data(struct adaptived_cause * const cse, bool force_delete)
 			free(cur->data);
 			break;
 		case ADAPTIVED_SDATA_NAME_VALUE:
-			struct adaptived_name_and_value *name_value;
-
 			name_value = (struct adaptived_name_and_value *)cur->data;
 
 			free(name_value->name);
