@@ -103,6 +103,35 @@ jobs:
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-wrapper.sh.log
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-c-wrapper.sh.log
 
+  build-with-clang:
+    name: Build with Clang
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+    - name: Fail on all warnings
+      run: |
+        CFLAGS=-Werror
+        export CFLAGS
+    - name: Install Dependencies
+      run: |
+        while sudo fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock >/dev/null 2>&1; do sleep 3; done
+        sudo apt-get update
+        sudo apt-get install libjson-c-dev lcov cmake bison flex autoconf automake libtool libsystemd-dev clang -y
+    - name: Build adaptived
+      run: cd adaptived && ./autogen.sh && ./configure && make check-build
+    - name: Run functional tests
+      run: cd adaptived && make check
+    - name: Display test logs
+      if: ${{ always() }}
+      run: |
+        cat adaptived/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
+
   functional_tests_cgv2:
     name: Adaptived Functional Tests v2
     runs-on: ubuntu-latest
