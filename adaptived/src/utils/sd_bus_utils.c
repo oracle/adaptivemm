@@ -445,7 +445,7 @@ API int adaptived_sd_bus_set_str(const char * const target, const char * const p
 				return -EFAULT;
 			}
 			if (strlen(validate_value) != strlen(value) ||
-			    strncmp(validate_value, value, strlen(validate_value) != 0)) {
+			    strncmp(validate_value, value, strlen(validate_value)) != 0) {
 				adaptived_err("Failed to validate %s.  Expected %s, read %s\n",
 					   property, value, validate_value);
 				free(validate_value);
