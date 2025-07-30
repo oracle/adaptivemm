@@ -235,7 +235,7 @@ out:
 			return ret;
 
 		if (strlen(validate_value) != strlen(value) ||
-		    strncmp(validate_value, value, strlen(validate_value) != 0)) {
+		    strncmp(validate_value, value, strlen(validate_value)) != 0) {
 			adaptived_err("Failed to validate %s.  Expected %s, read %s\n",
 				   setting, value, validate_value);
 			free(validate_value);
