@@ -6,6 +6,7 @@ SUBDIRS = ${DIST_SUBDIRS}
 SOURCES = \
 	adaptived-internal.h \
 	causes/always.c \
+	causes/cgroup_data.c \
 	causes/cgroup_setting.c \
 	causes/days_of_the_week.c \
 	causes/meminfo.c \
