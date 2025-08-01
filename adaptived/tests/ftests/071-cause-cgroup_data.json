@@ -1,0 +1,35 @@
+{
+	"rules": [
+		{
+			"name": "Gather cgroup data and print it out",
+			"causes": [
+				{
+					"name": "cgroup_data",
+					"args": {
+						"cgroup": "./test071cgroup///",
+						"settings": [
+							{
+								"setting": "memory.current"
+							},
+							{
+								"setting": "cpu.uclamp.min"
+							},
+							{
+								"setting": "cpuset.cpus.effective"
+							}
+						]
+					}
+				}
+			],
+			"effects": [
+				{
+					"name": "print",
+					"args": {
+						"file": "071-cause-cgroup_data.out",
+						"shared_data": true
+					}
+				}
+			]
+		}
+	]
+}

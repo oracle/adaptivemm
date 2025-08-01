@@ -1,5 +1,6 @@
 __pycache__/
 *.log
+*.out
 *.pressure
 *.trs
 test[0-9]*
