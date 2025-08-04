@@ -757,3 +757,127 @@ err:
 
 	return ret;
 }
+
+static int replace_token(FILE * const out_file, const char * const line, ssize_t line_len)
+{
+	char *start, *end, *token_str, *op = NULL;
+	ssize_t op_len, start_len, end_len;
+	char cwd[FILENAME_MAX];
+	int ret = 0;
+
+	start = strstr(line, "<< ");
+	end = strstr(line, " >>");
+
+	/*
+	 * Subtract 2 for the <<, subtract 1 for the first whitespace padding, Add 1 for the
+	 * NULL terminator
+	 */
+	op_len = end - start - 2 - 1 + 1;
+
+	op = malloc(op_len * sizeof(char));
+	if (!op)
+		return -ENOMEM;
+
+	snprintf(op, op_len, "%s", &start[3]);
+	op[op_len - 1] = '\0';
+
+	if (strcmp(op, "pwd") == 0) {
+		getcwd(cwd, sizeof(cwd));
+		token_str = cwd;
+	} else {
+		/* unsupported operation */
+		ret = -EINVAL;
+		goto err;
+	}
+
+	start_len = start - line;
+
+	if (start_len)
+		(void)fwrite(line, sizeof(char), start_len, out_file);
+
+	(void)fwrite(token_str, sizeof(char), strlen(token_str), out_file);
+
+	/*
+	 * We can't do strlen(line) because it may contain extra characters
+	 * from a previous getline().
+	 *
+	 * The first "-3" is the length of the start token, and the second
+	 * "-3" is the length of the end token
+	 */
+	end_len = line_len - start_len - op_len - 3 - 3;
+
+	if (end_len)
+		(void)fwrite(&end[3], sizeof(char), end_len, out_file);
+
+	(void)fwrite("\n", sizeof(char), strlen("\n"), out_file);
+
+err:
+	if (op)
+		free(op);
+
+	return ret;
+}
+
+/*
+ * Parse the specified token file, e.g. test001.json.token, and output the
+ * parsed contents to the filename minus the ".token" suffix, e.g.
+ * test001.json
+ *
+ * It is the responsibility of the caller to delete the output file
+ */
+int parse_token_file(const char * const token_file, const char * const out_file)
+{
+	FILE *in = NULL, *out = NULL;
+	ssize_t chars_rd, chars_wr;
+	char *line = NULL;
+	size_t line_sz;
+	int ret;
+
+	if (!token_file)
+		return -EINVAL;
+
+	if (!strstr(token_file, ".token"))
+		return -EINVAL;
+
+	in = fopen(token_file, "r");
+	if (!in) {
+		adaptived_err("Failed to open: %s: \n", token_file, errno);
+		ret = -errno;
+		goto err;
+	}
+
+	out = fopen(out_file, "w");
+	if (!out) {
+		adaptived_err("Failed to open: %s: %d\n", out_file, errno);
+		ret = -errno;
+		goto err;
+	}
+
+	while ((chars_rd = getline(&line, &line_sz, in)) != -1) {
+		if (strstr(line, "<<") && strstr(line, ">>")) {
+			ret = replace_token(out, line, chars_rd);
+			if (ret)
+				goto err;
+		} else {
+			chars_wr = fwrite(line, sizeof(char), chars_rd, out);
+			if (chars_wr != chars_rd) {
+				adaptived_err("Failed to write \"%s\" to %s\n", line, out_file);
+				ret = -EIO;
+				goto err;
+			}
+		}
+	}
+
+	ret = 0;
+
+err:
+	if (in)
+		fclose(in);
+	if (out)
+		fclose(out);
+
+	if (line)
+		free(line);
+
+	return ret;
+}

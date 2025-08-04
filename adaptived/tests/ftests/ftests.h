@@ -85,5 +85,6 @@ int get_cgroup_version(int * const version);
 int build_cgroup_path(const char * const controller, const char * const cgrp, char ** path);
 int build_systemd_cgroup_path(const char * const cgrp, char ** path);
 int build_systemd_memory_max_file(const char * const cgrp_path, char **file_path);
+int parse_token_file(const char * const token_file, const char * const out_file);
 
 #endif /* __ADAPTIVED_FTESTS_H */
