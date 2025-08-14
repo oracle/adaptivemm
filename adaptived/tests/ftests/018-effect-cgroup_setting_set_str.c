@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	struct adaptived_effect *eff = NULL;
 	struct adaptived_rule *rule = NULL;
 	struct adaptived_ctx *ctx = NULL;
-	struct adaptived_cause *cse;
+	struct adaptived_cause *cse = NULL;
 	int ret;
 
 	ctx = adaptived_init(NULL);

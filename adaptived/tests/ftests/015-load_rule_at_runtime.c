@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 	struct adaptived_cause *cse;
 	struct adaptived_rule *rule;
 	pthread_t adaptived_thread;
-	struct adaptived_ctx *ctx;
+	struct adaptived_ctx *ctx = NULL;
 	char *time_str = NULL;
 	void *tret;
 	int ret;
@@ -177,8 +177,10 @@ err:
 	adaptived_release_effect(&eff);
 	adaptived_release_rule(&rule);
 
-	adaptived_unload_rule(ctx, rule_name);
-	adaptived_release(&ctx);
+	if (ctx) {
+		adaptived_unload_rule(ctx, rule_name);
+		adaptived_release(&ctx);
+	}
 
 	return AUTOMAKE_HARD_ERROR;
 }

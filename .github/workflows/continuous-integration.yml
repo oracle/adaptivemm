@@ -40,7 +40,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Differential ShellCheck
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python environment
         uses: actions/setup-python@v4
         with:
@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: 'Calculate PR commits + 1'
         run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: ${{ env.PR_FETCH_DEPTH }}
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: false
     - name: Initialize the directory
@@ -103,12 +103,41 @@ jobs:
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-wrapper.sh.log
         cat adaptived/adaptived-*/_build/sub/tests/ftests/ftests-c-wrapper.sh.log
 
+  build-with-clang:
+    name: Build with Clang
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+    - name: Fail on all warnings
+      run: |
+        CFLAGS=-Werror
+        export CFLAGS
+    - name: Install Dependencies
+      run: |
+        while sudo fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock >/dev/null 2>&1; do sleep 3; done
+        sudo apt-get update
+        sudo apt-get install libjson-c-dev lcov cmake bison flex autoconf automake libtool libsystemd-dev clang -y
+    - name: Build adaptived
+      run: cd adaptived && ./autogen.sh && ./configure && make check-build
+    - name: Run functional tests
+      run: cd adaptived && make check
+    - name: Display test logs
+      if: ${{ always() }}
+      run: |
+        cat adaptived/tests/ftests/ftests-wrapper.sh.log
+        cat adaptived/tests/ftests/ftests-c-wrapper.sh.log
+
   functional_tests_cgv2:
     name: Adaptived Functional Tests v2
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: false
     - name: Fail on all warnings
