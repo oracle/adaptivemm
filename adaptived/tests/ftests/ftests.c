@@ -128,6 +128,95 @@ err:
 	return ret;
 }
 
+#define MAX_LINES 4096
+int compare_files_unsorted(const char * const file1, const char * const file2)
+{
+	char *f1_line = NULL, *f2_line = NULL;
+	int f1_line_cnt = 0, f2_line_cnt = 0;
+	bool used[MAX_LINES] = { false };
+	FILE *f1 = NULL, *f2 = NULL;
+	size_t f1_sz, f2_sz;
+	bool found_line;
+	ssize_t read;
+	int ret, i;
+
+	f1 = fopen(file1, "r");
+	if (!f1) {
+		ret = -errno;
+		goto err;
+	}
+
+	f2 = fopen(file2, "r");
+	if (!f2) {
+		ret = -errno;
+		goto err;
+	}
+
+
+	while ((read = getline(&f1_line, &f1_sz, f1)) != -1) {
+		f1_line_cnt++;
+		rewind(f2);
+		i = 0;
+
+		while ((read = getline(&f2_line, &f2_sz, f2)) != -1) {
+			if (i < MAX_LINES && used[i] == true) {
+				i++;
+				continue;
+			}
+
+			if (f1_sz != f2_sz) {
+				i++;
+				continue;
+			}
+
+			if (strncmp(f1_line, f2_line, f1_sz) == 0) {
+				found_line = true;
+				if (i < MAX_LINES)
+					used[i] = true;
+				break;
+			}
+
+			i++;
+		}
+
+		if (!found_line) {
+			ret = -ENOSTR;
+			goto err;
+		}
+	}
+
+	for (i = 0; i < MAX_LINES && i < f1_line_cnt; i++) {
+		if (!used[i]) {
+			adaptived_err("Line %d in %s was unused\n", i, file2);
+			ret = -ENODATA;
+			goto err;
+		}
+	}
+
+	rewind(f2);
+	while ((read = getline(&f2_line, &f2_sz, f2)) != -1)
+		f2_line_cnt++;
+
+	if (f1_line_cnt != f2_line_cnt) {
+		ret = -ENODATA;
+		goto err;
+	}
+
+	ret = 0;
+
+err:
+	if (f1_line)
+		free(f1_line);
+	if (f2_line)
+		free(f2_line);
+	if (f1)
+		fclose(f1);
+	if (f2)
+		fclose(f2);
+
+	return ret;
+}
+
 int verify_int_file(const char * const filename, int expected_value)
 {
 	char buf[1024] = { '\0' };
@@ -665,6 +754,130 @@ int start_unit(const char *unit_name, const char *cmd_to_run)
 err:
 	if (cgrp_path)
 		free(cgrp_path);
+
+	return ret;
+}
+
+static int replace_token(FILE * const out_file, const char * const line, ssize_t line_len)
+{
+	char *start, *end, *token_str, *op = NULL;
+	ssize_t op_len, start_len, end_len;
+	char cwd[FILENAME_MAX];
+	int ret = 0;
+
+	start = strstr(line, "<< ");
+	end = strstr(line, " >>");
+
+	/*
+	 * Subtract 2 for the <<, subtract 1 for the first whitespace padding, Add 1 for the
+	 * NULL terminator
+	 */
+	op_len = end - start - 2 - 1 + 1;
+
+	op = malloc(op_len * sizeof(char));
+	if (!op)
+		return -ENOMEM;
+
+	snprintf(op, op_len, "%s", &start[3]);
+	op[op_len - 1] = '\0';
+
+	if (strcmp(op, "pwd") == 0) {
+		getcwd(cwd, sizeof(cwd));
+		token_str = cwd;
+	} else {
+		/* unsupported operation */
+		ret = -EINVAL;
+		goto err;
+	}
+
+	start_len = start - line;
+
+	if (start_len)
+		(void)fwrite(line, sizeof(char), start_len, out_file);
+
+	(void)fwrite(token_str, sizeof(char), strlen(token_str), out_file);
+
+	/*
+	 * We can't do strlen(line) because it may contain extra characters
+	 * from a previous getline().
+	 *
+	 * The first "-3" is the length of the start token, and the second
+	 * "-3" is the length of the end token
+	 */
+	end_len = line_len - start_len - op_len - 3 - 3;
+
+	if (end_len)
+		(void)fwrite(&end[3], sizeof(char), end_len, out_file);
+
+	(void)fwrite("\n", sizeof(char), strlen("\n"), out_file);
+
+err:
+	if (op)
+		free(op);
+
+	return ret;
+}
+
+/*
+ * Parse the specified token file, e.g. test001.json.token, and output the
+ * parsed contents to the filename minus the ".token" suffix, e.g.
+ * test001.json
+ *
+ * It is the responsibility of the caller to delete the output file
+ */
+int parse_token_file(const char * const token_file, const char * const out_file)
+{
+	FILE *in = NULL, *out = NULL;
+	ssize_t chars_rd, chars_wr;
+	char *line = NULL;
+	size_t line_sz;
+	int ret;
+
+	if (!token_file)
+		return -EINVAL;
+
+	if (!strstr(token_file, ".token"))
+		return -EINVAL;
+
+	in = fopen(token_file, "r");
+	if (!in) {
+		adaptived_err("Failed to open: %s: \n", token_file, errno);
+		ret = -errno;
+		goto err;
+	}
+
+	out = fopen(out_file, "w");
+	if (!out) {
+		adaptived_err("Failed to open: %s: %d\n", out_file, errno);
+		ret = -errno;
+		goto err;
+	}
+
+	while ((chars_rd = getline(&line, &line_sz, in)) != -1) {
+		if (strstr(line, "<<") && strstr(line, ">>")) {
+			ret = replace_token(out, line, chars_rd);
+			if (ret)
+				goto err;
+		} else {
+			chars_wr = fwrite(line, sizeof(char), chars_rd, out);
+			if (chars_wr != chars_rd) {
+				adaptived_err("Failed to write \"%s\" to %s\n", line, out_file);
+				ret = -EIO;
+				goto err;
+			}
+		}
+	}
+
+	ret = 0;
+
+err:
+	if (in)
+		fclose(in);
+	if (out)
+		fclose(out);
+
+	if (line)
+		free(line);
 
 	return ret;
 }

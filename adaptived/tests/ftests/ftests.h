@@ -58,6 +58,7 @@ void delete_file(const char * const filename);
 void delete_files(const char * const files[], int files_cnt);
 void write_file(const char * const filename, const char * const contents);
 int compare_files(const char * const file1, const char * const file2);
+int compare_files_unsorted(const char * const file1, const char * const file2);
 int verify_int_file(const char * const filename, int expected_value);
 int verify_ll_file(const char * const filename, long long expected_value);
 int verify_char_file(const char * const filename, const char * const expected_contents);
@@ -84,5 +85,6 @@ int get_cgroup_version(int * const version);
 int build_cgroup_path(const char * const controller, const char * const cgrp, char ** path);
 int build_systemd_cgroup_path(const char * const cgrp, char ** path);
 int build_systemd_memory_max_file(const char * const cgrp_path, char **file_path);
+int parse_token_file(const char * const token_file, const char * const out_file);
 
 #endif /* __ADAPTIVED_FTESTS_H */

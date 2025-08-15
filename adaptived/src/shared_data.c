@@ -26,11 +26,65 @@
 
 #include <adaptived.h>
 #include <stdbool.h>
+#include <string.h>
 #include <errno.h>
 
 #include "adaptived-internal.h"
 #include "shared_data.h"
 #include "cause.h"
+
+int write_sdata_cgroup_setting_value(struct adaptived_cause * const cse,
+				     const char * const cgroup_name,
+				     const char * const setting,
+				     const struct adaptived_cgroup_value * const value,
+				     uint32_t flags)
+{
+	struct adaptived_cgroup_setting_and_value *sdata = NULL;
+	int ret;
+
+	if (!cse || !cgroup_name || !setting || !value)
+		return -EINVAL;
+
+	sdata = malloc(sizeof(struct adaptived_cgroup_setting_and_value));
+	if (!sdata)
+		return -ENOMEM;
+	memset(sdata, 0, sizeof(struct adaptived_cgroup_setting_and_value));
+
+	sdata->cgroup_name = strdup(cgroup_name);
+	if (!sdata->cgroup_name) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	sdata->setting = strdup(setting);
+	if (!sdata->setting) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	sdata->value = malloc(sizeof(struct adaptived_cgroup_value));
+	if (!sdata->value) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	memcpy(sdata->value, value, sizeof(struct adaptived_cgroup_value));
+
+	ret = adaptived_write_shared_data(cse, ADAPTIVED_SDATA_CGROUP_SETTING_VALUE,
+					  sdata, NULL, flags);
+
+	return ret;
+
+error:
+	if (sdata->cgroup_name)
+		free(sdata->cgroup_name);
+	if (sdata->setting)
+		free(sdata->setting);
+	if (sdata->value)
+		free(sdata->value);
+
+	return ret;
+}
 
 /*
  * Method for a cause to share data with effect(s) in the same rule.
@@ -220,6 +274,16 @@ API void free_shared_data(struct adaptived_cause * const cse, bool force_delete)
 
 			free(name_value->name);
 			adaptived_free_cgroup_value(name_value->value);
+			free(cur->data);
+			break;
+		case ADAPTIVED_SDATA_CGROUP_SETTING_VALUE:
+			struct adaptived_cgroup_setting_and_value *cgsv;
+
+			cgsv = (struct adaptived_cgroup_setting_and_value *)cur->data;
+
+			free(cgsv->cgroup_name);
+			free(cgsv->setting);
+			adaptived_free_cgroup_value(cgsv->value);
 			free(cur->data);
 			break;
 		default:
