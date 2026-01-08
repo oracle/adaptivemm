@@ -456,14 +456,23 @@ API int adaptived_cgroup_get_value(const char * const setting,
 			adaptived_dbg("setting from %s is not a long long.\n", setting);
 		}
 
+		ret = adaptived_cgroup_get_float(setting, &value->value.float_value);
+		if (ret == 0) {
+			value->type = ADAPTIVED_CGVAL_FLOAT;
+			return ret;
+		} else {
+			adaptived_dbg("setting from %s is not a float: %d\n", setting, ret);
+		}
+
 		ret = adaptived_cgroup_get_str(setting, &value->value.str_value);
 		if (ret == 0) {
 			value->type = ADAPTIVED_CGVAL_STR;
-			adaptived_dbg("setting from %s is a string: %s\n", setting, value->value.str_value);
 			return ret;
 		} else {
 			adaptived_dbg("setting from %s is not a string: %d\n", setting, ret);
 		}
+
+		adaptived_err("Failed to detect setting type for %s\n", setting);
 		break;
 	default:
 		adaptived_err("Invalid cgroup value type: %d\n", value->type);

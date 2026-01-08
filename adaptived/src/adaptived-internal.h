@@ -149,6 +149,16 @@ struct adaptived_rule *rule_init(const char * const name);
 void rule_destroy(struct adaptived_rule ** rule);
 
 /*
+ * shared_data.c functions
+ */
+
+int write_sdata_cgroup_setting_value(struct adaptived_cause * const cse,
+				     const char * const cgroup_name,
+				     const char * const setting,
+				     const struct adaptived_cgroup_value * const value,
+				     uint32_t flags);
+
+/*
  * mem_utils defines
  */
 

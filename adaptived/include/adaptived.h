@@ -70,8 +70,9 @@ enum adaptived_sdata_type {
 	 */
 	ADAPTIVED_SDATA_CUSTOM = 0,
 	ADAPTIVED_SDATA_STR,
-	ADAPTIVED_SDATA_CGROUP,
-	ADAPTIVED_SDATA_NAME_VALUE,
+	ADAPTIVED_SDATA_CGROUP, /* struct adaptived_cgroup_value */
+	ADAPTIVED_SDATA_NAME_VALUE, /* struct adaptived_name_and_value */
+	ADAPTIVED_SDATA_CGROUP_SETTING_VALUE, /* struct adaptived_cgroup_setting_and_value */
 
 	ADAPTIVED_SDATA_CNT
 };
@@ -114,6 +115,12 @@ struct adaptived_cgroup_value {
 
 struct adaptived_name_and_value {
 	char *name;
+	struct adaptived_cgroup_value *value;
+};
+
+struct adaptived_cgroup_setting_and_value {
+	char *cgroup_name;
+	char *setting;
 	struct adaptived_cgroup_value *value;
 };
 

@@ -1,0 +1,38 @@
+Print effect triggered by:
+	cgroup_data
+Cause "cgroup_data" shared
+	cgroup "child1"
+	setting "memory.current"
+	long long value "8192000"
+Cause "cgroup_data" shared
+	cgroup "child1"
+	setting "cpu.uclamp.min"
+	float value "3.456000"
+Cause "cgroup_data" shared
+	cgroup "child1"
+	setting "cpuset.cpus.effective"
+	string value "1-20"
+Cause "cgroup_data" shared
+	cgroup "child2"
+	setting "memory.current"
+	long long value "0"
+Cause "cgroup_data" shared
+	cgroup "child2"
+	setting "cpu.uclamp.min"
+	float value "9.876000"
+Cause "cgroup_data" shared
+	cgroup "child2"
+	setting "cpuset.cpus.effective"
+	string value "5-8"
+Cause "cgroup_data" shared
+	cgroup "child3"
+	setting "memory.current"
+	long long value "12345678"
+Cause "cgroup_data" shared
+	cgroup "child3"
+	setting "cpu.uclamp.min"
+	float value "4.680000"
+Cause "cgroup_data" shared
+	cgroup "child3"
+	setting "cpuset.cpus.effective"
+	string value "8,10"
