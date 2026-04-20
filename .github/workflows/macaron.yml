@@ -1,4 +1,4 @@
-# Copyright (c) 2024, Oracle and/or its affiliates.
+# Copyright (c) 2026, Oracle and/or its affiliates.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -19,30 +19,43 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
-# Continuous Integration Workflow for adaptived
+# Macaron Workflow for adaptivemm / adaptived
 #
-# Note: based on libcgroup's codeql-analysis.yml
-#
+name: Macaron check-github-actions
 
-name: "CodeQL"
-on: ["push", "pull_request"]
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+  schedule:
+    - cron: "20 15 * * 3"
 
 permissions:
   contents: read
 
 jobs:
-  codeql:
-    name: CodeQL
+  macaron-check-github-actions:
+    name: Macaron policy verification
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        submodules: false
-    - uses: github/codeql-action/init@65216971a11ded447a6b76263d5a144519e5eee1 # v2.25.2
-      with:
-        languages: cpp, python
-    - name: Initialize the directory
-      uses: ./.github/actions/setup-adaptived
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@65216971a11ded447a6b76263d5a144519e5eee1 # v2.25.2
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run Macaron check-github-actions policy
+        uses: oracle/macaron@b31acfe389133a5587d9639063ec70cb84e7bc47 # v0.23.0
+        with:
+          repo_path: ./
+          policy_file: check-github-actions
+          policy_purl: pkg:github.com/${{ github.repository }}@.*
+          reports_retention_days: 90
