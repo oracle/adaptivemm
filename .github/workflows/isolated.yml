@@ -27,6 +27,9 @@
 name: Isolate Changes
 on: ["push", "pull_request"]
 
+permissions:
+  contents: read
+
 jobs:
   files-modified:
     name: Get modified files
@@ -35,7 +38,7 @@ jobs:
       amm_modified: ${{ steps.adaptivemm.outputs.amm_modified }}
       ad_modified: ${{ steps.adaptived.outputs.ad_modified }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Fetch
         run: git fetch
       - name: Set adaptivemm-modified to 1 if files were changed
@@ -64,7 +67,7 @@ jobs:
         amm_modified: ${{ needs.files-modified.outputs.amm_modified }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Build the current adaptivemm executable
         run: |
           pushd adaptivemm/src
@@ -118,7 +121,7 @@ jobs:
         ad_modified: ${{ needs.files-modified.outputs.ad_modified }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install dependencies
         run: |
           sudo apt-get update

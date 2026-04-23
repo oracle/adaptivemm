@@ -27,6 +27,9 @@
 name: Continuous Integration
 on: ["push", "pull_request"]
 
+permissions:
+  contents: read
+
 jobs:
   # Doc: https://github.com/redhat-plumbers-in-action/differential-shellcheck#usage
   differential-shellcheck:
@@ -40,11 +43,11 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Differential ShellCheck
-        uses: redhat-plumbers-in-action/differential-shellcheck@v4
+        uses: redhat-plumbers-in-action/differential-shellcheck@d965e66ec0b3b2f821f75c8eff9b12442d9a7d1e # v5.5.6
         with:
           severity: warning
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -54,13 +57,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Python environment
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4.9.1
         with:
           python-version: "3.8"
       - name: flake8 Lint
-        uses: reviewdog/action-flake8@v3
+        uses: reviewdog/action-flake8@b65981e158319f08cb7d0132f28bc0081e110adc # v3.15.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -76,12 +79,12 @@ jobs:
     steps:
       - name: 'Calculate PR commits + 1'
         run: echo "PR_FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: ${{ env.PR_FETCH_DEPTH }}
       - name: Run checkpatch review
-        uses: webispy/checkpatch-action@v9
+        uses: webispy/checkpatch-action@58374fe5bb03358b23d3d6871e2ff290ce77fcd2 # v9
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
@@ -90,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: false
     - name: Initialize the directory
@@ -110,7 +113,7 @@ jobs:
       CC: clang
       CXX: clang++
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: false
     - name: Fail on all warnings
@@ -137,7 +140,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: false
     - name: Fail on all warnings
@@ -156,7 +159,7 @@ jobs:
     - name: Collate code coverage results
       uses: ./.github/actions/code-coverage
     - name: Upload code coverage results
-      uses: coverallsapp/github-action@master
+      uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b # v2.3.6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ./lcov.total
@@ -170,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Finalize code coverage results
-      uses: coverallsapp/github-action@master
+      uses: coverallsapp/github-action@648a8eb78e6d50909eff900e4ec85cab4524a45b # v2.3.6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         parallel-finished: True
