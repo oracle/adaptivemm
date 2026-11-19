@@ -302,7 +302,7 @@ unsigned long predict(struct frag_info *frag_vec, struct lsq_struct *lsq,
 		 * graph.
 		 */
 		clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
-		current_time = tspec.tv_sec*1000 + tspec.tv_nsec/1000 - lsq->x[lsq->next];
+		current_time = tspec.tv_sec*1000 + tspec.tv_nsec/1000000 - lsq->x[lsq->next];
 		if (current_time < 0)
 			current_time = 0;
 		if ((x_cross < 0) ||

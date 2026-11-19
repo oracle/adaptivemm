@@ -201,7 +201,7 @@ static inline unsigned long get_msecs(struct timespec *spec)
 	if (!spec)
 		return -1;
 
-	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000));
+	return (unsigned long)((spec->tv_sec * 1000) + (spec->tv_nsec / 1000000));
 }
 
 /*
